@@ -1,8 +1,8 @@
 use std::f32::consts::PI;
 
 use crate::{
-    method::{GenerationRequest, MethodCategory, PaletteMethod},
-    metrics::{delta_e76, relative_luminance},
+    method::{DeltaEMetric, GenerationRequest, MethodCategory, PaletteMethod},
+    metrics::{delta_e00, delta_e76, relative_luminance},
     palette::{Color, Palette},
 };
 
@@ -358,14 +358,16 @@ impl PaletteMethod for AnnealedDeltaESpacing {
             .map(|i| seed_h + (i as f32 * 360.0 / size as f32))
             .collect::<Vec<_>>();
         let mut best_hues = hues.clone();
-        let mut best_energy = palette_spacing_energy(&hues, sat, light);
+        let mut best_energy =
+            palette_spacing_energy(&hues, sat, light, request.params.deltae_metric);
 
         for iter in 0..iterations {
             let idx = iter % size;
             let jitter = (hash_unit(idx as u32, iter as u32) * 2.0 - 1.0) * 28.0 * temperature;
             let mut proposed = hues.clone();
             proposed[idx] = (proposed[idx] + jitter).rem_euclid(360.0);
-            let new_energy = palette_spacing_energy(&proposed, sat, light);
+            let new_energy =
+                palette_spacing_energy(&proposed, sat, light, request.params.deltae_metric);
             let delta = new_energy - best_energy;
 
             let accept = delta > 0.0
@@ -374,7 +376,8 @@ impl PaletteMethod for AnnealedDeltaESpacing {
                 hues = proposed;
             }
 
-            let current_energy = palette_spacing_energy(&hues, sat, light);
+            let current_energy =
+                palette_spacing_energy(&hues, sat, light, request.params.deltae_metric);
             if current_energy > best_energy {
                 best_energy = current_energy;
                 best_hues = hues.clone();
@@ -518,7 +521,9 @@ impl PaletteMethod for LabDeltaESpaced {
 
                 let min_delta = selected
                     .iter()
-                    .map(|existing| delta_e76(*candidate, *existing))
+                    .map(|existing| {
+                        delta_e_for_metric(request.params.deltae_metric, *candidate, *existing)
+                    })
                     .fold(f32::INFINITY, f32::min);
 
                 let score = if min_delta < target {
@@ -736,7 +741,7 @@ fn simulate_deuteranopia(color: Color, severity: f32) -> Color {
     )
 }
 
-fn palette_spacing_energy(hues: &[f32], sat: f32, light: f32) -> f32 {
+fn palette_spacing_energy(hues: &[f32], sat: f32, light: f32, metric: DeltaEMetric) -> f32 {
     let colors = hues
         .iter()
         .map(|hue| Color::from_hsl(*hue, sat, light))
@@ -744,10 +749,17 @@ fn palette_spacing_energy(hues: &[f32], sat: f32, light: f32) -> f32 {
     let mut min_delta = f32::INFINITY;
     for i in 0..colors.len() {
         for j in (i + 1)..colors.len() {
-            min_delta = min_delta.min(delta_e76(colors[i], colors[j]));
+            min_delta = min_delta.min(delta_e_for_metric(metric, colors[i], colors[j]));
         }
     }
     min_delta
+}
+
+fn delta_e_for_metric(metric: DeltaEMetric, a: Color, b: Color) -> f32 {
+    match metric {
+        DeltaEMetric::E76 => delta_e76(a, b),
+        DeltaEMetric::E00 => delta_e00(a, b),
+    }
 }
 
 fn hash_unit(a: u32, b: u32) -> f32 {

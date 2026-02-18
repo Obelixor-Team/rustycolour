@@ -16,6 +16,13 @@ pub struct GenerationRequest {
     pub params: MethodParams,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum DeltaEMetric {
+    #[default]
+    E76,
+    E00,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct MethodParams {
@@ -28,6 +35,7 @@ pub struct MethodParams {
     pub luminance_max: f32,
     pub oklch_chroma_scale: f32,
     pub deltae_target: f32,
+    pub deltae_metric: DeltaEMetric,
     pub ryb_mix: f32,
     pub cvd_severity: f32,
     pub anneal_iterations: usize,
@@ -46,6 +54,7 @@ impl Default for MethodParams {
             luminance_max: 0.92,
             oklch_chroma_scale: 1.0,
             deltae_target: 22.0,
+            deltae_metric: DeltaEMetric::E76,
             ryb_mix: 1.0,
             cvd_severity: 1.0,
             anneal_iterations: 120,

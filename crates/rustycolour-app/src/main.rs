@@ -1,6 +1,6 @@
 use eframe::{NativeOptions, egui};
 use rustycolour_core::{
-    Color, ExportFormat, GenerationRequest, MethodParams, MethodRegistry, Palette,
+    Color, DeltaEMetric, ExportFormat, GenerationRequest, MethodParams, MethodRegistry, Palette,
     apca_contrast_lc, export_palette, wcag_contrast_ratio,
 };
 use serde::{Deserialize, Serialize};
@@ -168,6 +168,27 @@ impl RustyColourApp {
                         5.0..=60.0,
                     ))
                     .changed();
+                egui::ComboBox::from_label("DeltaE metric")
+                    .selected_text(match self.params.deltae_metric {
+                        DeltaEMetric::E76 => "CIE76",
+                        DeltaEMetric::E00 => "CIEDE2000",
+                    })
+                    .show_ui(ui, |ui| {
+                        changed |= ui
+                            .selectable_value(
+                                &mut self.params.deltae_metric,
+                                DeltaEMetric::E76,
+                                "CIE76",
+                            )
+                            .changed();
+                        changed |= ui
+                            .selectable_value(
+                                &mut self.params.deltae_metric,
+                                DeltaEMetric::E00,
+                                "CIEDE2000",
+                            )
+                            .changed();
+                    });
             }
             "ryb-complementary" => {
                 ui.label("RYB wheel mix");
@@ -189,6 +210,27 @@ impl RustyColourApp {
                         5.0..=60.0,
                     ))
                     .changed();
+                egui::ComboBox::from_label("DeltaE metric")
+                    .selected_text(match self.params.deltae_metric {
+                        DeltaEMetric::E76 => "CIE76",
+                        DeltaEMetric::E00 => "CIEDE2000",
+                    })
+                    .show_ui(ui, |ui| {
+                        changed |= ui
+                            .selectable_value(
+                                &mut self.params.deltae_metric,
+                                DeltaEMetric::E76,
+                                "CIE76",
+                            )
+                            .changed();
+                        changed |= ui
+                            .selectable_value(
+                                &mut self.params.deltae_metric,
+                                DeltaEMetric::E00,
+                                "CIEDE2000",
+                            )
+                            .changed();
+                    });
                 ui.label("Anneal iterations");
                 changed |= ui
                     .add(egui::Slider::new(
