@@ -1,11 +1,13 @@
 pub mod export;
 pub mod generators;
+pub mod import;
 pub mod method;
 pub mod metrics;
 pub mod palette;
 pub mod registry;
 
 pub use export::{ExportFormat, export_palette};
+pub use import::import_gpl;
 pub use method::{
     CvdMode, DeltaEMetric, GenerationRequest, MethodCategory, MethodParams, PaletteMethod,
 };

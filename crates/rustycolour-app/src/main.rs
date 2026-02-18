@@ -1,7 +1,7 @@
 use eframe::{NativeOptions, egui};
 use rustycolour_core::{
     Color, CvdMode, DeltaEMetric, ExportFormat, GenerationRequest, MethodParams, MethodRegistry,
-    Palette, apca_contrast_lc, export_palette, simulate_cvd, wcag_contrast_ratio,
+    Palette, apca_contrast_lc, export_palette, import_gpl, simulate_cvd, wcag_contrast_ratio,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -31,6 +31,7 @@ struct RustyColourApp {
     contrast_fg_index: usize,
     contrast_bg_index: usize,
     session_path: String,
+    import_path: String,
     preset_path: String,
     preset_name_input: String,
     preset_selection_index: usize,
@@ -75,6 +76,7 @@ impl Default for RustyColourApp {
             contrast_fg_index: 0,
             contrast_bg_index: 1,
             session_path: "rustycolour-session.json".to_owned(),
+            import_path: "palette.gpl".to_owned(),
             preset_path: "rustycolour-presets.json".to_owned(),
             preset_name_input: String::new(),
             preset_selection_index: 0,
@@ -363,6 +365,46 @@ impl RustyColourApp {
                 .desired_rows(10)
                 .desired_width(ui.available_width()),
         );
+    }
+
+    fn import_gpl_from_path(&mut self) {
+        let content = match fs::read_to_string(&self.import_path) {
+            Ok(content) => content,
+            Err(error) => {
+                self.status = format!("Failed to read GPL file: {error}");
+                return;
+            }
+        };
+
+        let palette = match import_gpl(&content) {
+            Ok(palette) => palette,
+            Err(error) => {
+                self.status = format!("Failed to parse GPL: {error}");
+                return;
+            }
+        };
+
+        let imported_len = palette.colors.len();
+        if let Some(first) = palette.colors.first() {
+            self.seed_hex = first.to_hex_rgb();
+        }
+        self.palette_size = imported_len.clamp(2, 24);
+        self.palette = palette;
+        self.contrast_fg_index = 0;
+        self.contrast_bg_index = 1.min(self.palette.colors.len().saturating_sub(1));
+        self.status = format!("Imported {imported_len} colors from {}", self.import_path);
+    }
+
+    fn show_import_panel(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Import");
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label("GPL path");
+            ui.text_edit_singleline(&mut self.import_path);
+        });
+        if ui.button("Import GPL").clicked() {
+            self.import_gpl_from_path();
+        }
     }
 
     fn save_presets_to_disk(&mut self) {
@@ -713,6 +755,8 @@ impl eframe::App for RustyColourApp {
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     self.show_session_panel(ui);
+                    ui.separator();
+                    self.show_import_panel(ui);
                     ui.separator();
                     self.show_export_panel(ui);
                     ui.separator();
