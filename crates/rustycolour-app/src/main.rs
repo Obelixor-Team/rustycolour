@@ -275,6 +275,9 @@ impl eframe::App for RustyColourApp {
 
         egui::SidePanel::left("method_panel")
             .resizable(true)
+            .default_width(250.0)
+            .min_width(220.0)
+            .max_width(320.0)
             .show(ctx, |ui| {
                 ui.heading("Methods");
                 ui.separator();
@@ -295,6 +298,9 @@ impl eframe::App for RustyColourApp {
 
         egui::SidePanel::right("tools_panel")
             .resizable(true)
+            .default_width(300.0)
+            .min_width(260.0)
+            .max_width(380.0)
             .show(ctx, |ui| {
                 self.show_export_panel(ui);
                 ui.separator();
@@ -302,6 +308,7 @@ impl eframe::App for RustyColourApp {
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            ui.spacing_mut().item_spacing = egui::vec2(10.0, 10.0);
             ui.heading("rustycolour");
             ui.label("Colour theory tool for developers");
             ui.separator();
