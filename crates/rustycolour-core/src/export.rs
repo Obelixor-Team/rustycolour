@@ -8,16 +8,18 @@ pub enum ExportFormat {
     RgbList,
     HslList,
     OklchList,
+    Gpl,
     CssVariables,
     Json,
 }
 
 impl ExportFormat {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::HexList,
         Self::RgbList,
         Self::HslList,
         Self::OklchList,
+        Self::Gpl,
         Self::CssVariables,
         Self::Json,
     ];
@@ -28,6 +30,7 @@ impl ExportFormat {
             Self::RgbList => "RGB list",
             Self::HslList => "HSL list",
             Self::OklchList => "OKLCH list",
+            Self::Gpl => "GPL palette",
             Self::CssVariables => "CSS variables",
             Self::Json => "JSON",
         }
@@ -69,6 +72,21 @@ pub fn export_palette(palette: &Palette, format: ExportFormat, css_prefix: &str)
             })
             .collect::<Vec<_>>()
             .join("\n"),
+        ExportFormat::Gpl => {
+            let name = css_prefix.trim();
+            let name = if name.is_empty() { "rustycolour" } else { name };
+            let mut lines = vec![
+                "GIMP Palette".to_owned(),
+                format!("Name: {name}"),
+                "Columns: 6".to_owned(),
+                "#".to_owned(),
+            ];
+            lines.extend(palette.colors.iter().enumerate().map(|(index, color)| {
+                let (r, g, b) = color.to_rgb_u8();
+                format!("{r:>3} {g:>3} {b:>3}\tColor {}", index + 1)
+            }));
+            lines.join("\n")
+        }
         ExportFormat::CssVariables => {
             let prefix = css_prefix.trim();
             let prefix = if prefix.is_empty() { "color" } else { prefix };
