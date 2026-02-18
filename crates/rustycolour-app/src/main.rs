@@ -1,7 +1,8 @@
 use eframe::{NativeOptions, egui};
 use rustycolour_core::{
     Color, CvdMode, DeltaEMetric, ExportFormat, GenerationRequest, MethodParams, MethodRegistry,
-    Palette, apca_contrast_lc, export_palette, import_gpl, simulate_cvd, wcag_contrast_ratio,
+    Palette, apca_contrast_lc, export_palette, import_ase, import_gpl, simulate_cvd,
+    wcag_contrast_ratio,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -395,6 +396,34 @@ impl RustyColourApp {
         self.status = format!("Imported {imported_len} colors from {}", self.import_path);
     }
 
+    fn import_ase_from_path(&mut self) {
+        let bytes = match fs::read(&self.import_path) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                self.status = format!("Failed to read ASE file: {error}");
+                return;
+            }
+        };
+
+        let palette = match import_ase(&bytes) {
+            Ok(palette) => palette,
+            Err(error) => {
+                self.status = format!("Failed to parse ASE: {error}");
+                return;
+            }
+        };
+
+        let imported_len = palette.colors.len();
+        if let Some(first) = palette.colors.first() {
+            self.seed_hex = first.to_hex_rgb();
+        }
+        self.palette_size = imported_len.clamp(2, 24);
+        self.palette = palette;
+        self.contrast_fg_index = 0;
+        self.contrast_bg_index = 1.min(self.palette.colors.len().saturating_sub(1));
+        self.status = format!("Imported {imported_len} colors from {}", self.import_path);
+    }
+
     fn show_import_panel(&mut self, ui: &mut egui::Ui) {
         ui.heading("Import");
         ui.separator();
@@ -404,6 +433,9 @@ impl RustyColourApp {
         });
         if ui.button("Import GPL").clicked() {
             self.import_gpl_from_path();
+        }
+        if ui.button("Import ASE").clicked() {
+            self.import_ase_from_path();
         }
     }
 
