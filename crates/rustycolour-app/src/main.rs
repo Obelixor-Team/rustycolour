@@ -91,72 +91,97 @@ impl RustyColourApp {
         }
     }
 
-    fn show_dynamic_params(&mut self, ui: &mut egui::Ui, method_id: &str) {
+    fn show_dynamic_params(&mut self, ui: &mut egui::Ui, method_id: &str) -> bool {
+        let mut changed = false;
         ui.heading("Parameters");
         ui.separator();
 
         match method_id {
             "analogous" => {
                 ui.label("Hue spread (degrees)");
-                ui.add(egui::Slider::new(
-                    &mut self.params.analogous_spread_deg,
-                    20.0..=180.0,
-                ));
+                changed |= ui
+                    .add(egui::Slider::new(
+                        &mut self.params.analogous_spread_deg,
+                        20.0..=180.0,
+                    ))
+                    .changed();
             }
             "split-complementary" | "tetradic" => {
                 ui.label("Split angle (degrees)");
-                ui.add(egui::Slider::new(
-                    &mut self.params.split_complement_deg,
-                    10.0..=80.0,
-                ));
+                changed |= ui
+                    .add(egui::Slider::new(
+                        &mut self.params.split_complement_deg,
+                        10.0..=80.0,
+                    ))
+                    .changed();
             }
             "luminance-ramp" | "contrast-first" => {
                 ui.label("Min luminance");
-                ui.add(egui::Slider::new(&mut self.params.luminance_min, 0.0..=1.0));
+                changed |= ui
+                    .add(egui::Slider::new(&mut self.params.luminance_min, 0.0..=1.0))
+                    .changed();
                 ui.label("Max luminance");
-                ui.add(egui::Slider::new(&mut self.params.luminance_max, 0.0..=1.0));
+                changed |= ui
+                    .add(egui::Slider::new(&mut self.params.luminance_max, 0.0..=1.0))
+                    .changed();
             }
             "oklch-ramp" => {
                 ui.label("Min luminance");
-                ui.add(egui::Slider::new(&mut self.params.luminance_min, 0.0..=1.0));
+                changed |= ui
+                    .add(egui::Slider::new(&mut self.params.luminance_min, 0.0..=1.0))
+                    .changed();
                 ui.label("Max luminance");
-                ui.add(egui::Slider::new(&mut self.params.luminance_max, 0.0..=1.0));
+                changed |= ui
+                    .add(egui::Slider::new(&mut self.params.luminance_max, 0.0..=1.0))
+                    .changed();
                 ui.label("Chroma scale");
-                ui.add(egui::Slider::new(
-                    &mut self.params.oklch_chroma_scale,
-                    0.2..=2.0,
-                ));
+                changed |= ui
+                    .add(egui::Slider::new(
+                        &mut self.params.oklch_chroma_scale,
+                        0.2..=2.0,
+                    ))
+                    .changed();
             }
             "lab-deltae-spaced" => {
                 ui.label("Target DeltaE (Lab)");
-                ui.add(egui::Slider::new(
-                    &mut self.params.deltae_target,
-                    5.0..=60.0,
-                ));
+                changed |= ui
+                    .add(egui::Slider::new(
+                        &mut self.params.deltae_target,
+                        5.0..=60.0,
+                    ))
+                    .changed();
             }
             "golden-angle" => {
                 ui.label("Step (degrees)");
-                ui.add(egui::Slider::new(
-                    &mut self.params.golden_angle_step_deg,
-                    10.0..=179.0,
-                ));
+                changed |= ui
+                    .add(egui::Slider::new(
+                        &mut self.params.golden_angle_step_deg,
+                        10.0..=179.0,
+                    ))
+                    .changed();
             }
             "cubehelix" => {
                 ui.label("Rotations");
-                ui.add(egui::Slider::new(
-                    &mut self.params.cubehelix_rotations,
-                    -4.0..=4.0,
-                ));
+                changed |= ui
+                    .add(egui::Slider::new(
+                        &mut self.params.cubehelix_rotations,
+                        -4.0..=4.0,
+                    ))
+                    .changed();
                 ui.label("Hue strength");
-                ui.add(egui::Slider::new(
-                    &mut self.params.cubehelix_hue_strength,
-                    0.0..=2.0,
-                ));
+                changed |= ui
+                    .add(egui::Slider::new(
+                        &mut self.params.cubehelix_hue_strength,
+                        0.0..=2.0,
+                    ))
+                    .changed();
             }
             _ => {
                 ui.label("No extra parameters for this method.");
             }
         }
+
+        changed
     }
 
     fn show_export_panel(&mut self, ui: &mut egui::Ui) {
@@ -242,6 +267,9 @@ impl RustyColourApp {
 
 impl eframe::App for RustyColourApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let mut controls_changed = self.palette.colors.is_empty();
+        let mut manual_generate = false;
+
         egui::SidePanel::left("method_panel")
             .resizable(true)
             .show(ctx, |ui| {
@@ -250,12 +278,16 @@ impl eframe::App for RustyColourApp {
 
                 for (index, method) in self.registry.methods().iter().enumerate() {
                     let label = format!("{} ({:?})", method.name(), method.category());
-                    ui.selectable_value(&mut self.selected_method_index, index, label);
+                    controls_changed |= ui
+                        .selectable_value(&mut self.selected_method_index, index, label)
+                        .changed();
                 }
 
                 ui.separator();
-                let selected_id = self.selected_method().map_or("", |method| method.id());
-                self.show_dynamic_params(ui, selected_id);
+                let selected_id = self
+                    .selected_method()
+                    .map_or_else(String::new, |method| method.id().to_owned());
+                controls_changed |= self.show_dynamic_params(ui, &selected_id);
             });
 
         egui::SidePanel::right("tools_panel")
@@ -273,13 +305,15 @@ impl eframe::App for RustyColourApp {
 
             ui.horizontal(|ui| {
                 ui.label("Seed HEX:");
-                ui.text_edit_singleline(&mut self.seed_hex);
+                controls_changed |= ui.text_edit_singleline(&mut self.seed_hex).changed();
 
                 ui.label("Size:");
-                ui.add(egui::Slider::new(&mut self.palette_size, 2..=24));
+                controls_changed |= ui
+                    .add(egui::Slider::new(&mut self.palette_size, 2..=24))
+                    .changed();
 
                 if ui.button("Generate").clicked() {
-                    self.generate_palette();
+                    manual_generate = true;
                 }
             });
 
@@ -315,5 +349,9 @@ impl eframe::App for RustyColourApp {
                 }
             });
         });
+
+        if controls_changed || manual_generate {
+            self.generate_palette();
+        }
     }
 }
