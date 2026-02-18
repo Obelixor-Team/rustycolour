@@ -14,4 +14,5 @@ authors.workspace = true
 workspace = true
 
 [dependencies]
+eframe = "0.31.1"
 rustycolour-core = { path = "../rustycolour-core" }

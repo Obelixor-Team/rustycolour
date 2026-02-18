@@ -14,9 +14,18 @@ A colour theory toolkit for developers, artists, and design systems.
 - `docs/`: architecture, theory references, roadmap, and design decisions.
 - `examples/`: reproducible examples and presets.
 
-## Status
+## Current capabilities
 
-Project scaffolding is in place. Core algorithms and GUI features are next.
+- Built-in palette method registry.
+- Initial generation methods:
+  - Monochrome
+  - Complementary
+  - Analogous
+  - Triadic
+  - Golden-angle sequence
+  - Cubehelix
+- Desktop GUI scaffold with method selection, seed HEX input, swatch rendering, and click-to-copy HEX values.
+- CLI scaffold with generation example output.
 
 ## Development
 
@@ -24,6 +33,8 @@ Project scaffolding is in place. Core algorithms and GUI features are next.
 cargo fmt
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo run -p rustycolour-cli
+cargo run -p rustycolour-app
 ```
 
 ## License

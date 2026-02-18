@@ -1,4 +1,4 @@
-use crate::palette::Palette;
+use crate::palette::{Color, Palette};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MethodCategory {
@@ -10,11 +10,11 @@ pub enum MethodCategory {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GenerationRequest {
-    pub seed: crate::palette::Color,
+    pub seed: Color,
     pub size: usize,
 }
 
-pub trait PaletteMethod {
+pub trait PaletteMethod: Send + Sync {
     fn id(&self) -> &'static str;
     fn name(&self) -> &'static str;
     fn category(&self) -> MethodCategory;

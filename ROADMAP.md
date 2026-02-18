@@ -4,21 +4,21 @@
 
 - [x] Rust workspace and crates.
 - [x] OSS baseline docs and contribution files.
-- [ ] Core domain types and method registry.
-- [ ] GUI shell with placeholder views.
-- [ ] CLI command scaffold.
+- [x] Core domain types and method registry.
+- [x] GUI shell with palette generation and swatch copy.
+- [x] CLI command scaffold.
 
 ## Phase 2: Core Models
 
-- [ ] Classical harmony methods.
+- [ ] Classical harmony methods expansion (split-complementary, tetradic, square, monochrome variants).
 - [ ] Perceptual methods (OKLCH/Lab interpolation, Delta-E aware spacing).
 - [ ] Accessibility checks and contrast targets.
 
 ## Phase 3: Advanced/Uncommon Methods
 
 - [ ] RYB mapping variants.
-- [ ] Golden-angle and sequence-driven hue generation.
-- [ ] Cubehelix and scientific visualization ramps.
+- [ ] Golden-angle and sequence-driven hue generation refinement.
+- [ ] Cubehelix and scientific visualization ramps expansion.
 - [ ] CVD-aware and robust categorical sets.
 
 ## Phase 4: Productization
