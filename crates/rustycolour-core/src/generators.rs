@@ -754,3 +754,63 @@ fn hash_unit(a: u32, b: u32) -> f32 {
     let x = (a as f32 * 12.9898 + b as f32 * 78.233).sin() * 43_758.547;
     x.fract().abs()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{AnnealedDeltaESpacing, CvdSafeCategorical, PaletteMethod, RybComplementary};
+    use crate::{
+        method::{GenerationRequest, MethodParams},
+        palette::Color,
+    };
+
+    #[test]
+    fn ryb_complementary_respects_requested_size() {
+        let method = RybComplementary;
+        let request = GenerationRequest {
+            seed: Color::from_rgb_u8(79, 70, 229),
+            size: 8,
+            params: MethodParams::default(),
+        };
+        let palette = method.generate(&request);
+        assert_eq!(palette.colors.len(), 8);
+    }
+
+    #[test]
+    fn cvd_safe_categorical_produces_multiple_distinct_colors() {
+        let method = CvdSafeCategorical;
+        let request = GenerationRequest {
+            seed: Color::from_rgb_u8(110, 87, 214),
+            size: 7,
+            params: MethodParams::default(),
+        };
+        let palette = method.generate(&request);
+        let unique_hex = palette
+            .colors
+            .iter()
+            .map(|color| color.to_hex_rgb())
+            .collect::<std::collections::BTreeSet<_>>();
+
+        assert_eq!(palette.colors.len(), 7);
+        assert!(unique_hex.len() >= 6);
+    }
+
+    #[test]
+    fn annealed_deltae_is_deterministic_for_same_input() {
+        let method = AnnealedDeltaESpacing;
+        let request = GenerationRequest {
+            seed: Color::from_rgb_u8(46, 153, 210),
+            size: 6,
+            params: MethodParams {
+                anneal_iterations: 90,
+                anneal_temperature: 1.2,
+                ..MethodParams::default()
+            },
+        };
+
+        let first = method.generate(&request);
+        let second = method.generate(&request);
+
+        assert_eq!(first.colors.len(), 6);
+        assert_eq!(first.colors, second.colors);
+    }
+}
