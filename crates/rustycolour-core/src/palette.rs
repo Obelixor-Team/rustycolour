@@ -1,3 +1,5 @@
+use palette::{IntoColor, Lab, Oklch, Srgb};
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color {
     pub r: f32,
@@ -106,6 +108,30 @@ impl Color {
             b: (b1 + m).clamp(0.0, 1.0),
             a: 1.0,
         }
+    }
+
+    pub fn to_oklch(self) -> (f32, f32, f32) {
+        let srgb = Srgb::new(self.r, self.g, self.b);
+        let oklch: Oklch = srgb.into_linear().into_color();
+        let h = oklch.hue.into_degrees();
+        (oklch.l, oklch.chroma, h)
+    }
+
+    pub fn from_oklch(l: f32, c: f32, h_deg: f32) -> Self {
+        let oklch = Oklch::new(l.clamp(0.0, 1.0), c.max(0.0), h_deg);
+        let srgb: Srgb = Srgb::from_linear(oklch.into_color());
+        Self {
+            r: srgb.red.clamp(0.0, 1.0),
+            g: srgb.green.clamp(0.0, 1.0),
+            b: srgb.blue.clamp(0.0, 1.0),
+            a: 1.0,
+        }
+    }
+
+    pub fn to_lab(self) -> (f32, f32, f32) {
+        let srgb = Srgb::new(self.r, self.g, self.b);
+        let lab: Lab = srgb.into_linear().into_color();
+        (lab.l, lab.a, lab.b)
     }
 }
 

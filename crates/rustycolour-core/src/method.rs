@@ -24,6 +24,8 @@ pub struct MethodParams {
     pub cubehelix_hue_strength: f32,
     pub luminance_min: f32,
     pub luminance_max: f32,
+    pub oklch_chroma_scale: f32,
+    pub deltae_target: f32,
 }
 
 impl Default for MethodParams {
@@ -36,6 +38,8 @@ impl Default for MethodParams {
             cubehelix_hue_strength: 1.2,
             luminance_min: 0.08,
             luminance_max: 0.92,
+            oklch_chroma_scale: 1.0,
+            deltae_target: 22.0,
         }
     }
 }

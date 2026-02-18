@@ -26,10 +26,14 @@ A colour theory toolkit for developers, artists, and design systems.
   - Tetradic
   - Square
   - Perceptual luminance ramp
+  - OKLCH ramp
+  - Lab DeltaE-spaced palette
   - Contrast-first accessibility ramp
   - Golden-angle sequence
   - Cubehelix
-- Desktop GUI scaffold with method selection, dynamic parameter controls, seed HEX input, swatch rendering, and click-to-copy HEX values.
+- Desktop GUI with method selection, dynamic parameter controls, swatch rendering, and one-click copy for HEX/RGB/HSL.
+- Export panel for HEX/RGB/HSL/OKLCH, CSS variables, and JSON.
+- Contrast scoring panel with WCAG ratios and APCA-style Lc estimates.
 - CLI scaffold with generation example output.
 
 ## Development

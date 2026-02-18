@@ -1,5 +1,8 @@
 use eframe::{NativeOptions, egui};
-use rustycolour_core::{Color, GenerationRequest, MethodParams, MethodRegistry, Palette};
+use rustycolour_core::{
+    Color, ExportFormat, GenerationRequest, MethodParams, MethodRegistry, Palette,
+    apca_contrast_lc, export_palette, wcag_contrast_ratio,
+};
 
 fn main() -> eframe::Result<()> {
     let options = NativeOptions::default();
@@ -18,22 +21,26 @@ struct RustyColourApp {
     params: MethodParams,
     palette: Palette,
     status: String,
+    export_format_index: usize,
+    export_css_prefix: String,
+    contrast_fg_index: usize,
+    contrast_bg_index: usize,
 }
 
 impl Default for RustyColourApp {
     fn default() -> Self {
-        let registry = MethodRegistry::with_builtins();
-        let seed_hex = "#4F46E5".to_owned();
-        let palette = Palette::empty();
-
         Self {
-            registry,
+            registry: MethodRegistry::with_builtins(),
             selected_method_index: 0,
-            seed_hex,
+            seed_hex: "#4F46E5".to_owned(),
             palette_size: 6,
             params: MethodParams::default(),
-            palette,
+            palette: Palette::empty(),
             status: "Ready".to_owned(),
+            export_format_index: 0,
+            export_css_prefix: "rc".to_owned(),
+            contrast_fg_index: 0,
+            contrast_bg_index: 1,
         }
     }
 }
@@ -44,6 +51,13 @@ impl RustyColourApp {
             .methods()
             .get(self.selected_method_index)
             .map(std::ops::Deref::deref)
+    }
+
+    fn selected_export_format(&self) -> ExportFormat {
+        ExportFormat::ALL
+            .get(self.export_format_index)
+            .copied()
+            .unwrap_or(ExportFormat::HexList)
     }
 
     fn generate_palette(&mut self) {
@@ -65,6 +79,8 @@ impl RustyColourApp {
 
         if let Some(palette) = self.registry.generate_by_id(method_id, &request) {
             self.palette = palette;
+            self.contrast_fg_index = 0;
+            self.contrast_bg_index = 1.min(self.palette.colors.len().saturating_sub(1));
             self.status = format!(
                 "Generated {} colors via {}",
                 self.palette.colors.len(),
@@ -100,6 +116,24 @@ impl RustyColourApp {
                 ui.label("Max luminance");
                 ui.add(egui::Slider::new(&mut self.params.luminance_max, 0.0..=1.0));
             }
+            "oklch-ramp" => {
+                ui.label("Min luminance");
+                ui.add(egui::Slider::new(&mut self.params.luminance_min, 0.0..=1.0));
+                ui.label("Max luminance");
+                ui.add(egui::Slider::new(&mut self.params.luminance_max, 0.0..=1.0));
+                ui.label("Chroma scale");
+                ui.add(egui::Slider::new(
+                    &mut self.params.oklch_chroma_scale,
+                    0.2..=2.0,
+                ));
+            }
+            "lab-deltae-spaced" => {
+                ui.label("Target DeltaE (Lab)");
+                ui.add(egui::Slider::new(
+                    &mut self.params.deltae_target,
+                    5.0..=60.0,
+                ));
+            }
             "golden-angle" => {
                 ui.label("Step (degrees)");
                 ui.add(egui::Slider::new(
@@ -124,6 +158,86 @@ impl RustyColourApp {
             }
         }
     }
+
+    fn show_export_panel(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Export");
+        ui.separator();
+
+        egui::ComboBox::from_label("Format")
+            .selected_text(self.selected_export_format().label())
+            .show_ui(ui, |ui| {
+                for (index, format) in ExportFormat::ALL.iter().enumerate() {
+                    ui.selectable_value(&mut self.export_format_index, index, format.label());
+                }
+            });
+
+        if self.selected_export_format() == ExportFormat::CssVariables {
+            ui.horizontal(|ui| {
+                ui.label("CSS prefix");
+                ui.text_edit_singleline(&mut self.export_css_prefix);
+            });
+        }
+
+        let output = export_palette(
+            &self.palette,
+            self.selected_export_format(),
+            &self.export_css_prefix,
+        );
+        if ui.button("Copy Export").clicked() {
+            ui.ctx().copy_text(output.clone());
+        }
+        let mut preview = output;
+
+        ui.add(
+            egui::TextEdit::multiline(&mut preview)
+                .font(egui::TextStyle::Monospace)
+                .desired_rows(10)
+                .desired_width(320.0),
+        );
+    }
+
+    fn show_contrast_panel(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Contrast");
+        ui.separator();
+
+        if self.palette.colors.len() < 2 {
+            ui.label("Generate at least 2 colors to score contrast.");
+            return;
+        }
+
+        let max_index = self.palette.colors.len() - 1;
+        self.contrast_fg_index = self.contrast_fg_index.min(max_index);
+        self.contrast_bg_index = self.contrast_bg_index.min(max_index);
+
+        ui.label("Foreground index");
+        ui.add(egui::Slider::new(
+            &mut self.contrast_fg_index,
+            0..=max_index,
+        ));
+        ui.label("Background index");
+        ui.add(egui::Slider::new(
+            &mut self.contrast_bg_index,
+            0..=max_index,
+        ));
+
+        let fg = self.palette.colors[self.contrast_fg_index];
+        let bg = self.palette.colors[self.contrast_bg_index];
+        let wcag = wcag_contrast_ratio(fg, bg);
+        let apca = apca_contrast_lc(fg, bg);
+
+        ui.monospace(format!("FG: {}", fg.to_hex_rgb()));
+        ui.monospace(format!("BG: {}", bg.to_hex_rgb()));
+        ui.label(format!("WCAG ratio: {wcag:.2}:1"));
+        ui.label(format!("APCA Lc (approx): {apca:.1}"));
+
+        let wcag_aa = if wcag >= 4.5 { "PASS" } else { "FAIL" };
+        let wcag_large = if wcag >= 3.0 { "PASS" } else { "FAIL" };
+        let apca_body = if apca.abs() >= 60.0 { "PASS" } else { "FAIL" };
+
+        ui.label(format!("WCAG AA normal (>=4.5): {wcag_aa}"));
+        ui.label(format!("WCAG AA large (>=3.0): {wcag_large}"));
+        ui.label(format!("APCA body text (|Lc|>=60): {apca_body}"));
+    }
 }
 
 impl eframe::App for RustyColourApp {
@@ -142,6 +256,14 @@ impl eframe::App for RustyColourApp {
                 ui.separator();
                 let selected_id = self.selected_method().map_or("", |method| method.id());
                 self.show_dynamic_params(ui, selected_id);
+            });
+
+        egui::SidePanel::right("tools_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                self.show_export_panel(ui);
+                ui.separator();
+                self.show_contrast_panel(ui);
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -169,16 +291,25 @@ impl eframe::App for RustyColourApp {
                     let (r, g, b) = color.to_rgb_u8();
                     let swatch = egui::Color32::from_rgb(r, g, b);
                     let hex = color.to_hex_rgb();
+                    let (h, s, l) = color.to_hsl();
+                    let rgb = format!("rgb({r}, {g}, {b})");
+                    let hsl = format!("hsl({h:.0}deg, {:.1}%, {:.1}%)", s * 100.0, l * 100.0);
 
                     ui.horizontal(|ui| {
-                        let size = egui::vec2(220.0, 30.0);
+                        let size = egui::vec2(190.0, 30.0);
                         let (rect, _response) =
                             ui.allocate_exact_size(size, egui::Sense::focusable_noninteractive());
                         ui.painter().rect_filled(rect, 6.0, swatch);
 
                         ui.monospace(&hex);
-                        if ui.button("Copy HEX").clicked() {
-                            ui.ctx().copy_text(hex);
+                        if ui.button("HEX").clicked() {
+                            ui.ctx().copy_text(hex.clone());
+                        }
+                        if ui.button("RGB").clicked() {
+                            ui.ctx().copy_text(rgb.clone());
+                        }
+                        if ui.button("HSL").clicked() {
+                            ui.ctx().copy_text(hsl.clone());
                         }
                     });
                 }

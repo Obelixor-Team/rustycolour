@@ -2,6 +2,7 @@ use std::f32::consts::PI;
 
 use crate::{
     method::{GenerationRequest, MethodCategory, PaletteMethod},
+    metrics::{delta_e76, relative_luminance},
     palette::{Color, Palette},
 };
 
@@ -268,6 +269,120 @@ impl PaletteMethod for LuminanceRamp {
     }
 }
 
+pub struct OklchRamp;
+
+impl PaletteMethod for OklchRamp {
+    fn id(&self) -> &'static str {
+        "oklch-ramp"
+    }
+
+    fn name(&self) -> &'static str {
+        "OKLCH Ramp"
+    }
+
+    fn category(&self) -> MethodCategory {
+        MethodCategory::Perceptual
+    }
+
+    fn generate(&self, request: &GenerationRequest) -> Palette {
+        let (seed_l, seed_c, seed_h) = request.seed.to_oklch();
+        let size = request.size.max(2);
+        let l_min = request.params.luminance_min.clamp(0.0, 1.0);
+        let l_max = request
+            .params
+            .luminance_max
+            .clamp(0.0, 1.0)
+            .max(l_min + 0.05);
+        let chroma = (seed_c * request.params.oklch_chroma_scale.clamp(0.2, 2.0)).clamp(0.01, 0.37);
+
+        let colors = (0..size)
+            .map(|i| {
+                let t = i as f32 / (size as f32 - 1.0);
+                let l = l_min + (l_max - l_min) * t;
+                let hue = seed_h + (t - 0.5) * 12.0;
+                Color::from_oklch(l, chroma, hue)
+            })
+            .collect::<Vec<_>>();
+
+        if colors.is_empty() {
+            Palette {
+                colors: vec![Color::from_oklch(seed_l, chroma, seed_h)],
+            }
+        } else {
+            Palette { colors }
+        }
+    }
+}
+
+pub struct LabDeltaESpaced;
+
+impl PaletteMethod for LabDeltaESpaced {
+    fn id(&self) -> &'static str {
+        "lab-deltae-spaced"
+    }
+
+    fn name(&self) -> &'static str {
+        "Lab DeltaE Spaced"
+    }
+
+    fn category(&self) -> MethodCategory {
+        MethodCategory::Perceptual
+    }
+
+    fn generate(&self, request: &GenerationRequest) -> Palette {
+        let size = request.size.max(2);
+        let (seed_h, seed_s, seed_l) = request.seed.to_hsl();
+        let mut selected = vec![request.seed];
+
+        let candidates = (0..72)
+            .map(|i| {
+                let hue = seed_h + i as f32 * 5.0;
+                let sat = (seed_s * 0.85 + 0.15).clamp(0.35, 0.95);
+                let light = (seed_l * 0.8 + 0.2).clamp(0.22, 0.78);
+                Color::from_hsl(hue, sat, light)
+            })
+            .collect::<Vec<_>>();
+
+        let target = request.params.deltae_target.max(5.0);
+        while selected.len() < size {
+            let mut best_index = None;
+            let mut best_score = -1.0f32;
+
+            for (idx, candidate) in candidates.iter().enumerate() {
+                if selected
+                    .iter()
+                    .any(|existing| candidate.to_hex_rgb() == existing.to_hex_rgb())
+                {
+                    continue;
+                }
+
+                let min_delta = selected
+                    .iter()
+                    .map(|existing| delta_e76(*candidate, *existing))
+                    .fold(f32::INFINITY, f32::min);
+
+                let score = if min_delta < target {
+                    min_delta * 0.5
+                } else {
+                    min_delta
+                };
+
+                if score > best_score {
+                    best_score = score;
+                    best_index = Some(idx);
+                }
+            }
+
+            match best_index {
+                Some(idx) => selected.push(candidates[idx]),
+                None => break,
+            }
+        }
+
+        Palette { colors: selected }
+    }
+}
+
 pub struct ContrastFirst;
 
 impl PaletteMethod for ContrastFirst {
@@ -369,21 +484,6 @@ impl PaletteMethod for Cubehelix {
 
         Palette { colors }
     }
-}
-
-fn srgb_to_linear(channel: f32) -> f32 {
-    if channel <= 0.04045 {
-        channel / 12.92
-    } else {
-        ((channel + 0.055) / 1.055).powf(2.4)
-    }
-}
-
-fn relative_luminance(color: Color) -> f32 {
-    let r = srgb_to_linear(color.r.clamp(0.0, 1.0));
-    let g = srgb_to_linear(color.g.clamp(0.0, 1.0));
-    let b = srgb_to_linear(color.b.clamp(0.0, 1.0));
-    0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
 fn color_with_target_luminance(h: f32, s: f32, target_luminance: f32) -> Color {

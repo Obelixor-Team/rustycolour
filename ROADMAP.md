@@ -12,8 +12,9 @@
 
 - [x] Classical harmony methods expansion (split-complementary, tetradic, square).
 - [x] Initial perceptual and accessibility-oriented luminance methods.
-- [ ] Advanced perceptual methods (OKLCH/Lab interpolation, Delta-E aware spacing).
-- [ ] Contrast scoring and target validation panel.
+- [x] Advanced perceptual methods (OKLCH/Lab and DeltaE-aware spacing baseline).
+- [x] Contrast scoring and target validation panel.
+- [x] Export panel (HEX/RGB/HSL/OKLCH/CSS/JSON).
 
 ## Phase 3: Advanced/Uncommon Methods
 
