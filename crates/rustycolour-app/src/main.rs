@@ -6,7 +6,7 @@ use rustycolour_core::{
 
 fn main() -> eframe::Result<()> {
     let options = NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([1220.0, 800.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([1170.0, 660.0]),
         ..Default::default()
     };
     eframe::run_native(
