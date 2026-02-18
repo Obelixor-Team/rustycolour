@@ -21,10 +21,15 @@ A colour theory toolkit for developers, artists, and design systems.
   - Monochrome
   - Complementary
   - Analogous
+  - Split-complementary
   - Triadic
+  - Tetradic
+  - Square
+  - Perceptual luminance ramp
+  - Contrast-first accessibility ramp
   - Golden-angle sequence
   - Cubehelix
-- Desktop GUI scaffold with method selection, seed HEX input, swatch rendering, and click-to-copy HEX values.
+- Desktop GUI scaffold with method selection, dynamic parameter controls, seed HEX input, swatch rendering, and click-to-copy HEX values.
 - CLI scaffold with generation example output.
 
 ## Development

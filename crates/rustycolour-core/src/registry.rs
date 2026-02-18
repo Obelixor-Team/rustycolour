@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use crate::{
-    generators::{Analogous, Complementary, Cubehelix, GoldenAngle, Monochrome, Triadic},
+    generators::{
+        Analogous, Complementary, ContrastFirst, Cubehelix, GoldenAngle, LuminanceRamp, Monochrome,
+        SplitComplementary, Square, Tetradic, Triadic,
+    },
     method::{GenerationRequest, PaletteMethod},
     palette::Palette,
 };
@@ -16,7 +19,12 @@ impl MethodRegistry {
             Arc::new(Monochrome),
             Arc::new(Complementary),
             Arc::new(Analogous),
+            Arc::new(SplitComplementary),
             Arc::new(Triadic),
+            Arc::new(Tetradic),
+            Arc::new(Square),
+            Arc::new(LuminanceRamp),
+            Arc::new(ContrastFirst),
             Arc::new(GoldenAngle),
             Arc::new(Cubehelix),
         ];

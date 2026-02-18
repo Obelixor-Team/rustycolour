@@ -86,13 +86,46 @@ impl PaletteMethod for Analogous {
     fn generate(&self, request: &GenerationRequest) -> Palette {
         let (h, s, l) = request.seed.to_hsl();
         let size = request.size.max(3);
-        let spread = 60.0;
+        let spread = request.params.analogous_spread_deg.clamp(20.0, 180.0);
 
         let colors = (0..size)
             .map(|i| {
                 let position = i as f32 / (size as f32 - 1.0);
                 let offset = (position - 0.5) * spread;
                 Color::from_hsl(h + offset, s, l)
+            })
+            .collect();
+
+        Palette { colors }
+    }
+}
+
+pub struct SplitComplementary;
+
+impl PaletteMethod for SplitComplementary {
+    fn id(&self) -> &'static str {
+        "split-complementary"
+    }
+
+    fn name(&self) -> &'static str {
+        "Split Complementary"
+    }
+
+    fn category(&self) -> MethodCategory {
+        MethodCategory::Classical
+    }
+
+    fn generate(&self, request: &GenerationRequest) -> Palette {
+        let (h, s, l) = request.seed.to_hsl();
+        let size = request.size.max(3);
+        let split = request.params.split_complement_deg.clamp(10.0, 80.0);
+        let wheel = [h, h + (180.0 - split), h + (180.0 + split)];
+
+        let colors = (0..size)
+            .map(|i| {
+                let hue = wheel[i % wheel.len()];
+                let tone = (l + (i as f32 * 0.04)).clamp(0.2, 0.85);
+                Color::from_hsl(hue, s, tone)
             })
             .collect();
 
@@ -135,6 +168,137 @@ impl PaletteMethod for Triadic {
     }
 }
 
+pub struct Tetradic;
+
+impl PaletteMethod for Tetradic {
+    fn id(&self) -> &'static str {
+        "tetradic"
+    }
+
+    fn name(&self) -> &'static str {
+        "Tetradic"
+    }
+
+    fn category(&self) -> MethodCategory {
+        MethodCategory::Classical
+    }
+
+    fn generate(&self, request: &GenerationRequest) -> Palette {
+        let (h, s, l) = request.seed.to_hsl();
+        let size = request.size.max(4);
+        let offset = request.params.split_complement_deg.clamp(20.0, 80.0);
+        let wheel = [h, h + offset, h + 180.0, h + (180.0 + offset)];
+
+        let colors = (0..size)
+            .map(|i| {
+                let tone = (l + ((i % 2) as f32 * 0.08) - 0.04).clamp(0.18, 0.85);
+                Color::from_hsl(wheel[i % wheel.len()], s, tone)
+            })
+            .collect();
+
+        Palette { colors }
+    }
+}
+
+pub struct Square;
+
+impl PaletteMethod for Square {
+    fn id(&self) -> &'static str {
+        "square"
+    }
+
+    fn name(&self) -> &'static str {
+        "Square"
+    }
+
+    fn category(&self) -> MethodCategory {
+        MethodCategory::Classical
+    }
+
+    fn generate(&self, request: &GenerationRequest) -> Palette {
+        let (h, s, l) = request.seed.to_hsl();
+        let size = request.size.max(4);
+        let wheel = [h, h + 90.0, h + 180.0, h + 270.0];
+
+        let colors = (0..size)
+            .map(|i| {
+                let tone = (l + (i as f32 * 0.03)).clamp(0.2, 0.86);
+                Color::from_hsl(wheel[i % wheel.len()], s, tone)
+            })
+            .collect();
+
+        Palette { colors }
+    }
+}
+
+pub struct LuminanceRamp;
+
+impl PaletteMethod for LuminanceRamp {
+    fn id(&self) -> &'static str {
+        "luminance-ramp"
+    }
+
+    fn name(&self) -> &'static str {
+        "Perceptual Luminance Ramp"
+    }
+
+    fn category(&self) -> MethodCategory {
+        MethodCategory::Perceptual
+    }
+
+    fn generate(&self, request: &GenerationRequest) -> Palette {
+        let (h, s, _) = request.seed.to_hsl();
+        let size = request.size.max(2);
+        let l_min = request.params.luminance_min.clamp(0.0, 1.0);
+        let l_max = request
+            .params
+            .luminance_max
+            .clamp(0.0, 1.0)
+            .max(l_min + 0.05);
+
+        let colors = (0..size)
+            .map(|i| {
+                let t = i as f32 / (size as f32 - 1.0);
+                let target = l_min + (l_max - l_min) * t;
+                color_with_target_luminance(h, s, target)
+            })
+            .collect();
+
+        Palette { colors }
+    }
+}
+
+pub struct ContrastFirst;
+
+impl PaletteMethod for ContrastFirst {
+    fn id(&self) -> &'static str {
+        "contrast-first"
+    }
+
+    fn name(&self) -> &'static str {
+        "Contrast-First"
+    }
+
+    fn category(&self) -> MethodCategory {
+        MethodCategory::Accessibility
+    }
+
+    fn generate(&self, request: &GenerationRequest) -> Palette {
+        let (h, s, _) = request.seed.to_hsl();
+        let size = request.size.max(2);
+        let dark =
+            color_with_target_luminance(h, s, request.params.luminance_min.clamp(0.02, 0.35));
+        let light =
+            color_with_target_luminance(h, s, request.params.luminance_max.clamp(0.65, 0.98));
+
+        let colors = (0..size)
+            .map(|i| if i % 2 == 0 { dark } else { light })
+            .collect();
+
+        Palette { colors }
+    }
+}
+
 pub struct GoldenAngle;
 
 impl PaletteMethod for GoldenAngle {
@@ -153,7 +317,7 @@ impl PaletteMethod for GoldenAngle {
     fn generate(&self, request: &GenerationRequest) -> Palette {
         let (seed_h, seed_s, seed_l) = request.seed.to_hsl();
         let size = request.size.max(2);
-        let step = 137.50776;
+        let step = request.params.golden_angle_step_deg.clamp(10.0, 179.0);
 
         let colors = (0..size)
             .map(|i| {
@@ -187,8 +351,8 @@ impl PaletteMethod for Cubehelix {
         let (seed_h, _, _) = request.seed.to_hsl();
         let size = request.size.max(2);
         let start = (seed_h / 360.0) * 3.0;
-        let rotations = -1.3;
-        let hue_strength = 1.2;
+        let rotations = request.params.cubehelix_rotations.clamp(-4.0, 4.0);
+        let hue_strength = request.params.cubehelix_hue_strength.clamp(0.0, 2.0);
 
         let colors = (0..size)
             .map(|i| {
@@ -205,4 +369,40 @@ impl PaletteMethod for Cubehelix {
 
         Palette { colors }
     }
+}
+
+fn srgb_to_linear(channel: f32) -> f32 {
+    if channel <= 0.04045 {
+        channel / 12.92
+    } else {
+        ((channel + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+fn relative_luminance(color: Color) -> f32 {
+    let r = srgb_to_linear(color.r.clamp(0.0, 1.0));
+    let g = srgb_to_linear(color.g.clamp(0.0, 1.0));
+    let b = srgb_to_linear(color.b.clamp(0.0, 1.0));
+    0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+fn color_with_target_luminance(h: f32, s: f32, target_luminance: f32) -> Color {
+    let target = target_luminance.clamp(0.0, 1.0);
+    let mut low = 0.0;
+    let mut high = 1.0;
+    let mut candidate = Color::from_hsl(h, s, 0.5);
+
+    for _ in 0..22 {
+        let mid = (low + high) * 0.5;
+        candidate = Color::from_hsl(h, s, mid);
+        let lum = relative_luminance(candidate);
+
+        if lum < target {
+            low = mid;
+        } else {
+            high = mid;
+        }
+    }
+
+    candidate
 }

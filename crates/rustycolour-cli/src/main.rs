@@ -1,10 +1,11 @@
-use rustycolour_core::{Color, GenerationRequest, MethodRegistry};
+use rustycolour_core::{Color, GenerationRequest, MethodParams, MethodRegistry};
 
 fn main() {
     let registry = MethodRegistry::with_builtins();
     let request = GenerationRequest {
         seed: Color::from_rgb_u8(79, 70, 229),
         size: 6,
+        params: MethodParams::default(),
     };
 
     match registry.generate_by_id("golden-angle", &request) {

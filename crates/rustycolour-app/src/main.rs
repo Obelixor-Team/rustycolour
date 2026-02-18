@@ -1,5 +1,5 @@
 use eframe::{NativeOptions, egui};
-use rustycolour_core::{Color, GenerationRequest, MethodRegistry, Palette};
+use rustycolour_core::{Color, GenerationRequest, MethodParams, MethodRegistry, Palette};
 
 fn main() -> eframe::Result<()> {
     let options = NativeOptions::default();
@@ -15,6 +15,7 @@ struct RustyColourApp {
     selected_method_index: usize,
     seed_hex: String,
     palette_size: usize,
+    params: MethodParams,
     palette: Palette,
     status: String,
 }
@@ -30,6 +31,7 @@ impl Default for RustyColourApp {
             selected_method_index: 0,
             seed_hex,
             palette_size: 6,
+            params: MethodParams::default(),
             palette,
             status: "Ready".to_owned(),
         }
@@ -37,11 +39,11 @@ impl Default for RustyColourApp {
 }
 
 impl RustyColourApp {
-    fn selected_method_id(&self) -> Option<&'static str> {
+    fn selected_method(&self) -> Option<&dyn rustycolour_core::PaletteMethod> {
         self.registry
             .methods()
             .get(self.selected_method_index)
-            .map(|method| method.id())
+            .map(std::ops::Deref::deref)
     }
 
     fn generate_palette(&mut self) {
@@ -50,7 +52,7 @@ impl RustyColourApp {
             return;
         };
 
-        let Some(method_id) = self.selected_method_id() else {
+        let Some(method_id) = self.selected_method().map(|method| method.id()) else {
             self.status = "No method selected.".to_owned();
             return;
         };
@@ -58,16 +60,68 @@ impl RustyColourApp {
         let request = GenerationRequest {
             seed,
             size: self.palette_size,
+            params: self.params,
         };
 
         if let Some(palette) = self.registry.generate_by_id(method_id, &request) {
             self.palette = palette;
             self.status = format!(
-                "Generated {} colors via {method_id}",
-                self.palette.colors.len()
+                "Generated {} colors via {}",
+                self.palette.colors.len(),
+                method_id
             );
         } else {
             self.status = "Generation failed.".to_owned();
+        }
+    }
+
+    fn show_dynamic_params(&mut self, ui: &mut egui::Ui, method_id: &str) {
+        ui.heading("Parameters");
+        ui.separator();
+
+        match method_id {
+            "analogous" => {
+                ui.label("Hue spread (degrees)");
+                ui.add(egui::Slider::new(
+                    &mut self.params.analogous_spread_deg,
+                    20.0..=180.0,
+                ));
+            }
+            "split-complementary" | "tetradic" => {
+                ui.label("Split angle (degrees)");
+                ui.add(egui::Slider::new(
+                    &mut self.params.split_complement_deg,
+                    10.0..=80.0,
+                ));
+            }
+            "luminance-ramp" | "contrast-first" => {
+                ui.label("Min luminance");
+                ui.add(egui::Slider::new(&mut self.params.luminance_min, 0.0..=1.0));
+                ui.label("Max luminance");
+                ui.add(egui::Slider::new(&mut self.params.luminance_max, 0.0..=1.0));
+            }
+            "golden-angle" => {
+                ui.label("Step (degrees)");
+                ui.add(egui::Slider::new(
+                    &mut self.params.golden_angle_step_deg,
+                    10.0..=179.0,
+                ));
+            }
+            "cubehelix" => {
+                ui.label("Rotations");
+                ui.add(egui::Slider::new(
+                    &mut self.params.cubehelix_rotations,
+                    -4.0..=4.0,
+                ));
+                ui.label("Hue strength");
+                ui.add(egui::Slider::new(
+                    &mut self.params.cubehelix_hue_strength,
+                    0.0..=2.0,
+                ));
+            }
+            _ => {
+                ui.label("No extra parameters for this method.");
+            }
         }
     }
 }
@@ -84,11 +138,15 @@ impl eframe::App for RustyColourApp {
                     let label = format!("{} ({:?})", method.name(), method.category());
                     ui.selectable_value(&mut self.selected_method_index, index, label);
                 }
+
+                ui.separator();
+                let selected_id = self.selected_method().map_or("", |method| method.id());
+                self.show_dynamic_params(ui, selected_id);
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("rustycolour");
-            ui.label("Colour theory toolkit scaffold");
+            ui.label("Colour theory tool for developers");
             ui.separator();
 
             ui.horizontal(|ui| {
@@ -96,7 +154,7 @@ impl eframe::App for RustyColourApp {
                 ui.text_edit_singleline(&mut self.seed_hex);
 
                 ui.label("Size:");
-                ui.add(egui::Slider::new(&mut self.palette_size, 2..=16));
+                ui.add(egui::Slider::new(&mut self.palette_size, 2..=24));
 
                 if ui.button("Generate").clicked() {
                     self.generate_palette();
@@ -113,13 +171,13 @@ impl eframe::App for RustyColourApp {
                     let hex = color.to_hex_rgb();
 
                     ui.horizontal(|ui| {
-                        let size = egui::vec2(180.0, 28.0);
+                        let size = egui::vec2(220.0, 30.0);
                         let (rect, _response) =
                             ui.allocate_exact_size(size, egui::Sense::focusable_noninteractive());
-                        ui.painter().rect_filled(rect, 4.0, swatch);
+                        ui.painter().rect_filled(rect, 6.0, swatch);
 
                         ui.monospace(&hex);
-                        if ui.button("Copy").clicked() {
+                        if ui.button("Copy HEX").clicked() {
                             ui.ctx().copy_text(hex);
                         }
                     });
