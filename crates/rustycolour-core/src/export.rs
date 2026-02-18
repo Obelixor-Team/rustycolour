@@ -9,17 +9,19 @@ pub enum ExportFormat {
     HslList,
     OklchList,
     Gpl,
+    Ase,
     CssVariables,
     Json,
 }
 
 impl ExportFormat {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::HexList,
         Self::RgbList,
         Self::HslList,
         Self::OklchList,
         Self::Gpl,
+        Self::Ase,
         Self::CssVariables,
         Self::Json,
     ];
@@ -31,6 +33,7 @@ impl ExportFormat {
             Self::HslList => "HSL list",
             Self::OklchList => "OKLCH list",
             Self::Gpl => "GPL palette",
+            Self::Ase => "ASE palette",
             Self::CssVariables => "CSS variables",
             Self::Json => "JSON",
         }
@@ -87,6 +90,9 @@ pub fn export_palette(palette: &Palette, format: ExportFormat, css_prefix: &str)
             }));
             lines.join("\n")
         }
+        ExportFormat::Ase => {
+            "Binary ASE format selected. Use \"Export to File\" to write .ase.".to_owned()
+        }
         ExportFormat::CssVariables => {
             let prefix = css_prefix.trim();
             let prefix = if prefix.is_empty() { "color" } else { prefix };
@@ -123,10 +129,58 @@ pub fn export_palette(palette: &Palette, format: ExportFormat, css_prefix: &str)
     }
 }
 
+pub fn export_palette_bytes(
+    palette: &Palette,
+    format: ExportFormat,
+    css_prefix: &str,
+) -> Result<Vec<u8>, String> {
+    match format {
+        ExportFormat::Ase => export_ase_bytes(palette),
+        _ => Ok(export_palette(palette, format, css_prefix).into_bytes()),
+    }
+}
+
+fn export_ase_bytes(palette: &Palette) -> Result<Vec<u8>, String> {
+    if palette.colors.is_empty() {
+        return Err("Cannot export empty palette to ASE".to_owned());
+    }
+
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(b"ASEF");
+    bytes.extend_from_slice(&1u16.to_be_bytes()); // major
+    bytes.extend_from_slice(&0u16.to_be_bytes()); // minor
+    bytes.extend_from_slice(&(palette.colors.len() as u32).to_be_bytes());
+
+    for (index, color) in palette.colors.iter().enumerate() {
+        let name = format!("Color {}", index + 1);
+        let mut block = Vec::new();
+
+        // UTF-16BE name, including null terminator.
+        let mut utf16 = name.encode_utf16().collect::<Vec<_>>();
+        utf16.push(0);
+        block.extend_from_slice(&(utf16.len() as u16).to_be_bytes());
+        for unit in utf16 {
+            block.extend_from_slice(&unit.to_be_bytes());
+        }
+
+        block.extend_from_slice(b"RGB ");
+        block.extend_from_slice(&color.r.clamp(0.0, 1.0).to_bits().to_be_bytes());
+        block.extend_from_slice(&color.g.clamp(0.0, 1.0).to_bits().to_be_bytes());
+        block.extend_from_slice(&color.b.clamp(0.0, 1.0).to_bits().to_be_bytes());
+        block.extend_from_slice(&0u16.to_be_bytes()); // global color type
+
+        bytes.extend_from_slice(&0x0001u16.to_be_bytes());
+        bytes.extend_from_slice(&(block.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&block);
+    }
+
+    Ok(bytes)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{ExportFormat, export_palette};
-    use crate::{import::import_gpl, palette::Color, palette::Palette};
+    use super::{ExportFormat, export_palette, export_palette_bytes};
+    use crate::{import::import_ase, import::import_gpl, palette::Color, palette::Palette};
 
     #[test]
     fn gpl_round_trip_preserves_rgb_values() {
@@ -140,6 +194,26 @@ mod tests {
 
         let gpl = export_palette(&palette, ExportFormat::Gpl, "RoundTrip");
         let imported = import_gpl(&gpl).expect("exported GPL should be importable");
+
+        assert_eq!(imported.colors.len(), palette.colors.len());
+        for (left, right) in imported.colors.iter().zip(palette.colors.iter()) {
+            assert_eq!(left.to_rgb_u8(), right.to_rgb_u8());
+        }
+    }
+
+    #[test]
+    fn ase_round_trip_preserves_rgb_values() {
+        let palette = Palette {
+            colors: vec![
+                Color::from_rgb_u8(200, 10, 40),
+                Color::from_rgb_u8(12, 220, 100),
+                Color::from_rgb_u8(77, 88, 210),
+            ],
+        };
+
+        let ase = export_palette_bytes(&palette, ExportFormat::Ase, "")
+            .expect("ASE export should produce bytes");
+        let imported = import_ase(&ase).expect("exported ASE should be importable");
 
         assert_eq!(imported.colors.len(), palette.colors.len());
         for (left, right) in imported.colors.iter().zip(palette.colors.iter()) {

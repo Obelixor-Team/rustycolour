@@ -35,7 +35,7 @@ A colour theory toolkit for developers, artists, and design systems.
   - Golden-angle sequence
   - Cubehelix
 - Desktop GUI with method selection, dynamic parameter controls, swatch rendering, and one-click copy for HEX/RGB/HSL.
-- Export panel for HEX/RGB/HSL/OKLCH/GPL, CSS variables, and JSON, with copy and file export.
+- Export panel for HEX/RGB/HSL/OKLCH/GPL/ASE, CSS variables, and JSON, with copy and file export.
 - Import panel with GPL (`.gpl`) and ASE (`.ase`) palette loading.
 - Contrast scoring panel with WCAG ratios, APCA 0.0.98G-style Lc scoring, and CVD simulation modes.
 - Session save/load to JSON for seed, method, parameters, and generated swatches.

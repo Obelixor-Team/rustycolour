@@ -6,7 +6,7 @@ pub mod metrics;
 pub mod palette;
 pub mod registry;
 
-pub use export::{ExportFormat, export_palette};
+pub use export::{ExportFormat, export_palette, export_palette_bytes};
 pub use import::{import_ase, import_gpl};
 pub use method::{
     CvdMode, DeltaEMetric, GenerationRequest, MethodCategory, MethodParams, PaletteMethod,

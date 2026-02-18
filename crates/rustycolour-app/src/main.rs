@@ -1,8 +1,8 @@
 use eframe::{NativeOptions, egui};
 use rustycolour_core::{
     Color, CvdMode, DeltaEMetric, ExportFormat, GenerationRequest, MethodParams, MethodRegistry,
-    Palette, apca_contrast_lc, export_palette, import_ase, import_gpl, simulate_cvd,
-    wcag_contrast_ratio,
+    Palette, apca_contrast_lc, export_palette, export_palette_bytes, import_ase, import_gpl,
+    simulate_cvd, wcag_contrast_ratio,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -363,19 +363,36 @@ impl RustyColourApp {
             &self.export_css_prefix,
         );
         if ui.button("Copy Export").clicked() {
-            ui.ctx().copy_text(output.clone());
+            if self.selected_export_format() == ExportFormat::Ase {
+                self.status = "ASE is binary; use Export to File.".to_owned();
+            } else {
+                ui.ctx().copy_text(output.clone());
+            }
         }
         if ui.button("Export to File").clicked() {
-            match fs::write(&self.export_path, &output) {
-                Ok(()) => {
-                    self.status = format!("Exported palette to {}", self.export_path);
-                }
+            match export_palette_bytes(
+                &self.palette,
+                self.selected_export_format(),
+                &self.export_css_prefix,
+            ) {
+                Ok(bytes) => match fs::write(&self.export_path, bytes) {
+                    Ok(()) => {
+                        self.status = format!("Exported palette to {}", self.export_path);
+                    }
+                    Err(error) => {
+                        self.status = format!("Failed to export file: {error}");
+                    }
+                },
                 Err(error) => {
-                    self.status = format!("Failed to export file: {error}");
+                    self.status = format!("Failed to build export content: {error}");
                 }
             }
         }
-        let mut preview = output;
+        let mut preview = if self.selected_export_format() == ExportFormat::Ase {
+            "Binary ASE format selected. Use Export to File.".to_owned()
+        } else {
+            output
+        };
 
         ui.add(
             egui::TextEdit::multiline(&mut preview)
