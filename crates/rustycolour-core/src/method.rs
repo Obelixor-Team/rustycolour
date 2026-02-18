@@ -1,4 +1,5 @@
 use crate::palette::{Color, Palette};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MethodCategory {
@@ -15,7 +16,7 @@ pub struct GenerationRequest {
     pub params: MethodParams,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct MethodParams {
     pub analogous_spread_deg: f32,
     pub split_complement_deg: f32,

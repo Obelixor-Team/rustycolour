@@ -3,6 +3,8 @@ use rustycolour_core::{
     Color, ExportFormat, GenerationRequest, MethodParams, MethodRegistry, Palette,
     apca_contrast_lc, export_palette, wcag_contrast_ratio,
 };
+use serde::{Deserialize, Serialize};
+use std::fs;
 
 fn main() -> eframe::Result<()> {
     let options = NativeOptions {
@@ -28,6 +30,18 @@ struct RustyColourApp {
     export_css_prefix: String,
     contrast_fg_index: usize,
     contrast_bg_index: usize,
+    session_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AppSession {
+    seed_hex: String,
+    palette_size: usize,
+    method_id: String,
+    params: MethodParams,
+    export_format_index: usize,
+    export_css_prefix: String,
+    swatches_hex: Vec<String>,
 }
 
 impl Default for RustyColourApp {
@@ -44,6 +58,7 @@ impl Default for RustyColourApp {
             export_css_prefix: "rc".to_owned(),
             contrast_fg_index: 0,
             contrast_bg_index: 1,
+            session_path: "rustycolour-session.json".to_owned(),
         }
     }
 }
@@ -224,6 +239,102 @@ impl RustyColourApp {
         );
     }
 
+    fn save_session(&mut self) {
+        let method_id = self
+            .selected_method()
+            .map_or_else(String::new, |method| method.id().to_owned());
+        let session = AppSession {
+            seed_hex: self.seed_hex.clone(),
+            palette_size: self.palette_size,
+            method_id,
+            params: self.params,
+            export_format_index: self.export_format_index,
+            export_css_prefix: self.export_css_prefix.clone(),
+            swatches_hex: self.palette.colors.iter().map(|c| c.to_hex_rgb()).collect(),
+        };
+
+        match serde_json::to_string_pretty(&session) {
+            Ok(json) => match fs::write(&self.session_path, json) {
+                Ok(()) => {
+                    self.status = format!("Session saved to {}", self.session_path);
+                }
+                Err(error) => {
+                    self.status = format!("Failed to save session: {error}");
+                }
+            },
+            Err(error) => {
+                self.status = format!("Failed to serialize session: {error}");
+            }
+        }
+    }
+
+    fn load_session(&mut self) {
+        let content = match fs::read_to_string(&self.session_path) {
+            Ok(content) => content,
+            Err(error) => {
+                self.status = format!("Failed to read session: {error}");
+                return;
+            }
+        };
+
+        let session: AppSession = match serde_json::from_str(&content) {
+            Ok(session) => session,
+            Err(error) => {
+                self.status = format!("Invalid session JSON: {error}");
+                return;
+            }
+        };
+
+        self.seed_hex = session.seed_hex;
+        self.palette_size = session.palette_size;
+        self.params = session.params;
+        self.export_format_index = session.export_format_index.min(ExportFormat::ALL.len() - 1);
+        self.export_css_prefix = session.export_css_prefix;
+
+        if let Some(index) = self
+            .registry
+            .methods()
+            .iter()
+            .position(|method| method.id() == session.method_id)
+        {
+            self.selected_method_index = index;
+        }
+
+        let mut loaded = Vec::with_capacity(session.swatches_hex.len());
+        for swatch in &session.swatches_hex {
+            if let Some(color) = Color::from_hex_rgb(swatch) {
+                loaded.push(color);
+            }
+        }
+
+        if loaded.is_empty() {
+            self.generate_palette();
+            self.status = format!("Session loaded from {} (regenerated)", self.session_path);
+        } else {
+            self.palette = Palette { colors: loaded };
+            self.contrast_fg_index = 0;
+            self.contrast_bg_index = 1.min(self.palette.colors.len().saturating_sub(1));
+            self.status = format!("Session loaded from {}", self.session_path);
+        }
+    }
+
+    fn show_session_panel(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Session");
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label("Path");
+            ui.text_edit_singleline(&mut self.session_path);
+        });
+        ui.horizontal(|ui| {
+            if ui.button("Save Session").clicked() {
+                self.save_session();
+            }
+            if ui.button("Load Session").clicked() {
+                self.load_session();
+            }
+        });
+    }
+
     fn show_contrast_panel(&mut self, ui: &mut egui::Ui) {
         ui.heading("Contrast");
         ui.separator();
@@ -256,7 +367,7 @@ impl RustyColourApp {
         ui.monospace(format!("FG: {}", fg.to_hex_rgb()));
         ui.monospace(format!("BG: {}", bg.to_hex_rgb()));
         ui.label(format!("WCAG ratio: {wcag:.2}:1"));
-        ui.label(format!("APCA Lc (approx): {apca:.1}"));
+        ui.label(format!("APCA Lc: {apca:.1}"));
 
         let wcag_aa = if wcag >= 4.5 { "PASS" } else { "FAIL" };
         let wcag_large = if wcag >= 3.0 { "PASS" } else { "FAIL" };
@@ -303,6 +414,8 @@ impl eframe::App for RustyColourApp {
             .max_width(330.0)
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
+                    self.show_session_panel(ui);
+                    ui.separator();
                     self.show_export_panel(ui);
                     ui.separator();
                     self.show_contrast_panel(ui);

@@ -27,4 +27,4 @@
 
 - [ ] Preset packs.
 - [ ] Export formats and token pipelines.
-- [ ] Release automation and packaging.
+- [x] Release automation and packaging baseline (tag workflow + templates + checklist).
