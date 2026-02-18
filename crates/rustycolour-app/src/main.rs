@@ -220,7 +220,7 @@ impl RustyColourApp {
             egui::TextEdit::multiline(&mut preview)
                 .font(egui::TextStyle::Monospace)
                 .desired_rows(10)
-                .desired_width(320.0),
+                .desired_width(ui.available_width()),
         );
     }
 
@@ -275,9 +275,9 @@ impl eframe::App for RustyColourApp {
 
         egui::SidePanel::left("method_panel")
             .resizable(true)
-            .default_width(250.0)
-            .min_width(220.0)
-            .max_width(320.0)
+            .default_width(220.0)
+            .min_width(190.0)
+            .max_width(290.0)
             .show(ctx, |ui| {
                 ui.heading("Methods");
                 ui.separator();
@@ -298,13 +298,15 @@ impl eframe::App for RustyColourApp {
 
         egui::SidePanel::right("tools_panel")
             .resizable(true)
-            .default_width(300.0)
-            .min_width(260.0)
-            .max_width(380.0)
+            .default_width(250.0)
+            .min_width(220.0)
+            .max_width(330.0)
             .show(ctx, |ui| {
-                self.show_export_panel(ui);
-                ui.separator();
-                self.show_contrast_panel(ui);
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    self.show_export_panel(ui);
+                    ui.separator();
+                    self.show_contrast_panel(ui);
+                });
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
