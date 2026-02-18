@@ -1,4 +1,4 @@
-use crate::palette::Color;
+use crate::{method::CvdMode, palette::Color};
 
 const APCA_NORM_BG: f32 = 0.56;
 const APCA_NORM_TXT: f32 = 0.57;
@@ -129,6 +129,38 @@ pub fn delta_e00(a: Color, b: Color) -> f32 {
     (dl_term * dl_term + dc_term * dc_term + dh_term * dh_term + rt * dc_term * dh_term).sqrt()
 }
 
+pub fn simulate_cvd(color: Color, mode: CvdMode, severity: f32) -> Color {
+    let s = severity.clamp(0.0, 1.0);
+    let (mr, mg, mb) = match mode {
+        CvdMode::Deuteranopia => (
+            [0.367, 0.861, -0.228],
+            [0.280, 0.673, 0.047],
+            [-0.012, 0.043, 0.969],
+        ),
+        CvdMode::Protanopia => (
+            [0.152, 1.053, -0.205],
+            [0.115, 0.786, 0.099],
+            [-0.004, -0.048, 1.052],
+        ),
+        CvdMode::Tritanopia => (
+            [1.255, -0.076, -0.179],
+            [-0.078, 0.931, 0.148],
+            [0.005, 0.691, 0.304],
+        ),
+    };
+
+    let sim_r = (mr[0] * color.r + mr[1] * color.g + mr[2] * color.b).clamp(0.0, 1.0);
+    let sim_g = (mg[0] * color.r + mg[1] * color.g + mg[2] * color.b).clamp(0.0, 1.0);
+    let sim_b = (mb[0] * color.r + mb[1] * color.g + mb[2] * color.b).clamp(0.0, 1.0);
+
+    Color::from_rgba(
+        color.r + (sim_r - color.r) * s,
+        color.g + (sim_g - color.g) * s,
+        color.b + (sim_b - color.b) * s,
+        color.a,
+    )
+}
+
 fn apca_luminance(color: Color) -> f32 {
     let r = color.r.clamp(0.0, 1.0).powf(2.4);
     let g = color.g.clamp(0.0, 1.0).powf(2.4);
@@ -173,8 +205,8 @@ fn deg_to_rad(deg: f32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{apca_contrast_lc, delta_e00, delta_e76, wcag_contrast_ratio};
-    use crate::palette::Color;
+    use super::{apca_contrast_lc, delta_e00, delta_e76, simulate_cvd, wcag_contrast_ratio};
+    use crate::{method::CvdMode, palette::Color};
 
     #[test]
     fn wcag_black_on_white_is_high() {
@@ -217,5 +249,12 @@ mod tests {
     fn deltae00_is_zero_for_same_color() {
         let c = Color::from_rgb_u8(50, 100, 150);
         assert!(delta_e00(c, c) < f32::EPSILON);
+    }
+
+    #[test]
+    fn cvd_simulation_changes_color_at_full_severity() {
+        let c = Color::from_rgb_u8(90, 170, 45);
+        let sim = simulate_cvd(c, CvdMode::Tritanopia, 1.0);
+        assert_ne!(c.to_hex_rgb(), sim.to_hex_rgb());
     }
 }

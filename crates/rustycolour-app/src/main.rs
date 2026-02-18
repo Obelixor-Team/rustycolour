@@ -1,7 +1,7 @@
 use eframe::{NativeOptions, egui};
 use rustycolour_core::{
-    Color, DeltaEMetric, ExportFormat, GenerationRequest, MethodParams, MethodRegistry, Palette,
-    apca_contrast_lc, export_palette, wcag_contrast_ratio,
+    Color, CvdMode, DeltaEMetric, ExportFormat, GenerationRequest, MethodParams, MethodRegistry,
+    Palette, apca_contrast_lc, export_palette, simulate_cvd, wcag_contrast_ratio,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -197,6 +197,35 @@ impl RustyColourApp {
                     .changed();
             }
             "cvd-safe-categorical" => {
+                egui::ComboBox::from_label("CVD mode")
+                    .selected_text(match self.params.cvd_mode {
+                        CvdMode::Deuteranopia => "Deuteranopia",
+                        CvdMode::Protanopia => "Protanopia",
+                        CvdMode::Tritanopia => "Tritanopia",
+                    })
+                    .show_ui(ui, |ui| {
+                        changed |= ui
+                            .selectable_value(
+                                &mut self.params.cvd_mode,
+                                CvdMode::Deuteranopia,
+                                "Deuteranopia",
+                            )
+                            .changed();
+                        changed |= ui
+                            .selectable_value(
+                                &mut self.params.cvd_mode,
+                                CvdMode::Protanopia,
+                                "Protanopia",
+                            )
+                            .changed();
+                        changed |= ui
+                            .selectable_value(
+                                &mut self.params.cvd_mode,
+                                CvdMode::Tritanopia,
+                                "Tritanopia",
+                            )
+                            .changed();
+                    });
                 ui.label("CVD severity");
                 changed |= ui
                     .add(egui::Slider::new(&mut self.params.cvd_severity, 0.0..=1.0))
@@ -440,6 +469,10 @@ impl RustyColourApp {
         let bg = self.palette.colors[self.contrast_bg_index];
         let wcag = wcag_contrast_ratio(fg, bg);
         let apca = apca_contrast_lc(fg, bg);
+        let sim_fg = simulate_cvd(fg, self.params.cvd_mode, self.params.cvd_severity);
+        let sim_bg = simulate_cvd(bg, self.params.cvd_mode, self.params.cvd_severity);
+        let sim_wcag = wcag_contrast_ratio(sim_fg, sim_bg);
+        let sim_apca = apca_contrast_lc(sim_fg, sim_bg);
 
         ui.monospace(format!("FG: {}", fg.to_hex_rgb()));
         ui.monospace(format!("BG: {}", bg.to_hex_rgb()));
@@ -449,10 +482,38 @@ impl RustyColourApp {
         let wcag_aa = if wcag >= 4.5 { "PASS" } else { "FAIL" };
         let wcag_large = if wcag >= 3.0 { "PASS" } else { "FAIL" };
         let apca_body = if apca.abs() >= 60.0 { "PASS" } else { "FAIL" };
+        let sim_wcag_aa = if sim_wcag >= 4.5 { "PASS" } else { "FAIL" };
+        let sim_apca_body = if sim_apca.abs() >= 60.0 {
+            "PASS"
+        } else {
+            "FAIL"
+        };
 
         ui.label(format!("WCAG AA normal (>=4.5): {wcag_aa}"));
         ui.label(format!("WCAG AA large (>=3.0): {wcag_large}"));
         ui.label(format!("APCA body text (|Lc|>=60): {apca_body}"));
+        ui.separator();
+        ui.label("CVD simulation");
+        egui::ComboBox::from_label("Mode")
+            .selected_text(match self.params.cvd_mode {
+                CvdMode::Deuteranopia => "Deuteranopia",
+                CvdMode::Protanopia => "Protanopia",
+                CvdMode::Tritanopia => "Tritanopia",
+            })
+            .show_ui(ui, |ui| {
+                ui.selectable_value(
+                    &mut self.params.cvd_mode,
+                    CvdMode::Deuteranopia,
+                    "Deuteranopia",
+                );
+                ui.selectable_value(&mut self.params.cvd_mode, CvdMode::Protanopia, "Protanopia");
+                ui.selectable_value(&mut self.params.cvd_mode, CvdMode::Tritanopia, "Tritanopia");
+            });
+        ui.add(egui::Slider::new(&mut self.params.cvd_severity, 0.0..=1.0).text("Severity"));
+        ui.label(format!("Simulated WCAG ratio: {sim_wcag:.2}:1"));
+        ui.label(format!("Simulated APCA Lc: {sim_apca:.1}"));
+        ui.label(format!("Simulated WCAG AA normal: {sim_wcag_aa}"));
+        ui.label(format!("Simulated APCA body text: {sim_apca_body}"));
     }
 }
 

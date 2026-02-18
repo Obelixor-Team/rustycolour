@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use crate::{
     method::{DeltaEMetric, GenerationRequest, MethodCategory, PaletteMethod},
-    metrics::{delta_e00, delta_e76, relative_luminance},
+    metrics::{delta_e00, delta_e76, relative_luminance, simulate_cvd},
     palette::{Color, Palette},
 };
 
@@ -308,11 +308,12 @@ impl PaletteMethod for CvdSafeCategorical {
                 {
                     continue;
                 }
-                let candidate_cvd = simulate_deuteranopia(*candidate, severity);
+                let candidate_cvd = simulate_cvd(*candidate, request.params.cvd_mode, severity);
                 let min_cvd_delta = selected
                     .iter()
                     .map(|existing| {
-                        let existing_cvd = simulate_deuteranopia(*existing, severity);
+                        let existing_cvd =
+                            simulate_cvd(*existing, request.params.cvd_mode, severity);
                         delta_e76(candidate_cvd, existing_cvd)
                     })
                     .fold(f32::INFINITY, f32::min);
@@ -725,20 +726,6 @@ fn lerp_angle(a: f32, b: f32, t: f32) -> f32 {
         diff -= 360.0;
     }
     (a + diff * t).rem_euclid(360.0)
-}
-
-fn simulate_deuteranopia(color: Color, severity: f32) -> Color {
-    let s = severity.clamp(0.0, 1.0);
-    let sim_r = (0.367 * color.r + 0.861 * color.g - 0.228 * color.b).clamp(0.0, 1.0);
-    let sim_g = (0.28 * color.r + 0.673 * color.g + 0.047 * color.b).clamp(0.0, 1.0);
-    let sim_b = (-0.012 * color.r + 0.043 * color.g + 0.969 * color.b).clamp(0.0, 1.0);
-
-    Color::from_rgba(
-        color.r + (sim_r - color.r) * s,
-        color.g + (sim_g - color.g) * s,
-        color.b + (sim_b - color.b) * s,
-        color.a,
-    )
 }
 
 fn palette_spacing_energy(hues: &[f32], sat: f32, light: f32, metric: DeltaEMetric) -> f32 {

@@ -23,6 +23,14 @@ pub enum DeltaEMetric {
     E00,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum CvdMode {
+    #[default]
+    Deuteranopia,
+    Protanopia,
+    Tritanopia,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct MethodParams {
@@ -37,6 +45,7 @@ pub struct MethodParams {
     pub deltae_target: f32,
     pub deltae_metric: DeltaEMetric,
     pub ryb_mix: f32,
+    pub cvd_mode: CvdMode,
     pub cvd_severity: f32,
     pub anneal_iterations: usize,
     pub anneal_temperature: f32,
@@ -56,6 +65,7 @@ impl Default for MethodParams {
             deltae_target: 22.0,
             deltae_metric: DeltaEMetric::E76,
             ryb_mix: 1.0,
+            cvd_mode: CvdMode::Deuteranopia,
             cvd_severity: 1.0,
             anneal_iterations: 120,
             anneal_temperature: 1.0,
