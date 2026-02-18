@@ -31,6 +31,10 @@ struct RustyColourApp {
     contrast_fg_index: usize,
     contrast_bg_index: usize,
     session_path: String,
+    preset_path: String,
+    preset_name_input: String,
+    preset_selection_index: usize,
+    presets: Vec<MethodPreset>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +46,18 @@ struct AppSession {
     export_format_index: usize,
     export_css_prefix: String,
     swatches_hex: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MethodPreset {
+    name: String,
+    method_id: String,
+    params: MethodParams,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct PresetStore {
+    presets: Vec<MethodPreset>,
 }
 
 impl Default for RustyColourApp {
@@ -59,6 +75,10 @@ impl Default for RustyColourApp {
             contrast_fg_index: 0,
             contrast_bg_index: 1,
             session_path: "rustycolour-session.json".to_owned(),
+            preset_path: "rustycolour-presets.json".to_owned(),
+            preset_name_input: String::new(),
+            preset_selection_index: 0,
+            presets: Vec::new(),
         }
     }
 }
@@ -345,6 +365,144 @@ impl RustyColourApp {
         );
     }
 
+    fn save_presets_to_disk(&mut self) {
+        let store = PresetStore {
+            presets: self.presets.clone(),
+        };
+        match serde_json::to_string_pretty(&store) {
+            Ok(json) => match fs::write(&self.preset_path, json) {
+                Ok(()) => {
+                    self.status = format!("Presets saved to {}", self.preset_path);
+                }
+                Err(error) => {
+                    self.status = format!("Failed to save presets: {error}");
+                }
+            },
+            Err(error) => {
+                self.status = format!("Failed to serialize presets: {error}");
+            }
+        }
+    }
+
+    fn load_presets_from_disk(&mut self) {
+        let content = match fs::read_to_string(&self.preset_path) {
+            Ok(content) => content,
+            Err(error) => {
+                self.status = format!("Failed to read presets: {error}");
+                return;
+            }
+        };
+
+        let store: PresetStore = match serde_json::from_str(&content) {
+            Ok(store) => store,
+            Err(error) => {
+                self.status = format!("Invalid preset JSON: {error}");
+                return;
+            }
+        };
+
+        self.presets = store.presets;
+        self.preset_selection_index = 0;
+        self.status = format!("Loaded {} presets", self.presets.len());
+    }
+
+    fn show_preset_panel(&mut self, ui: &mut egui::Ui) -> bool {
+        let mut changed = false;
+        ui.heading("Presets");
+        ui.separator();
+
+        ui.horizontal(|ui| {
+            ui.label("File");
+            ui.text_edit_singleline(&mut self.preset_path);
+        });
+        ui.horizontal(|ui| {
+            if ui.button("Save Preset File").clicked() {
+                self.save_presets_to_disk();
+            }
+            if ui.button("Load Preset File").clicked() {
+                self.load_presets_from_disk();
+            }
+        });
+        ui.separator();
+
+        let Some(method_id) = self.selected_method().map(|method| method.id().to_owned()) else {
+            ui.label("Select a method to manage presets.");
+            return changed;
+        };
+
+        let filtered_indices = self
+            .presets
+            .iter()
+            .enumerate()
+            .filter_map(|(index, preset)| (preset.method_id == method_id).then_some(index))
+            .collect::<Vec<_>>();
+
+        if self.preset_selection_index >= filtered_indices.len() {
+            self.preset_selection_index = 0;
+        }
+
+        let selected_label = filtered_indices
+            .get(self.preset_selection_index)
+            .map(|idx| self.presets[*idx].name.clone())
+            .unwrap_or_else(|| "No presets".to_owned());
+
+        egui::ComboBox::from_label("Method presets")
+            .selected_text(selected_label)
+            .show_ui(ui, |ui| {
+                for (pos, idx) in filtered_indices.iter().enumerate() {
+                    ui.selectable_value(
+                        &mut self.preset_selection_index,
+                        pos,
+                        &self.presets[*idx].name,
+                    );
+                }
+            });
+
+        ui.horizontal(|ui| {
+            if ui.button("Load Selected").clicked() {
+                if let Some(idx) = filtered_indices.get(self.preset_selection_index) {
+                    self.params = self.presets[*idx].params;
+                    self.status = format!("Loaded preset '{}'", self.presets[*idx].name);
+                    changed = true;
+                }
+            }
+            if ui.button("Delete Selected").clicked() {
+                if let Some(idx) = filtered_indices.get(self.preset_selection_index) {
+                    let removed = self.presets.remove(*idx);
+                    self.preset_selection_index = 0;
+                    self.status = format!("Deleted preset '{}'", removed.name);
+                }
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Name");
+            ui.text_edit_singleline(&mut self.preset_name_input);
+        });
+        if ui.button("Save Current As Preset").clicked() {
+            let name = self.preset_name_input.trim();
+            if name.is_empty() {
+                self.status = "Preset name cannot be empty".to_owned();
+            } else if let Some(existing_index) = self
+                .presets
+                .iter()
+                .position(|preset| preset.method_id == method_id && preset.name == name)
+            {
+                self.presets[existing_index].params = self.params;
+                self.status = format!("Updated preset '{}'", name);
+            } else {
+                self.presets.push(MethodPreset {
+                    name: name.to_owned(),
+                    method_id,
+                    params: self.params,
+                });
+                self.status = format!("Saved preset '{}'", name);
+            }
+        }
+
+        changed
+    }
+
     fn save_session(&mut self) {
         let method_id = self
             .selected_method()
@@ -543,6 +701,8 @@ impl eframe::App for RustyColourApp {
                     .selected_method()
                     .map_or_else(String::new, |method| method.id().to_owned());
                 controls_changed |= self.show_dynamic_params(ui, &selected_id);
+                ui.separator();
+                controls_changed |= self.show_preset_panel(ui);
             });
 
         egui::SidePanel::right("tools_panel")

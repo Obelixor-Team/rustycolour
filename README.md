@@ -38,6 +38,7 @@ A colour theory toolkit for developers, artists, and design systems.
 - Export panel for HEX/RGB/HSL/OKLCH, CSS variables, and JSON.
 - Contrast scoring panel with WCAG ratios, APCA 0.0.98G-style Lc scoring, and CVD simulation modes.
 - Session save/load to JSON for seed, method, parameters, and generated swatches.
+- Method presets: save/load/delete named parameter profiles per generator, with JSON preset files.
 - CLI scaffold with generation example output.
 
 ## Development
