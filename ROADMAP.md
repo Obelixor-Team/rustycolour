@@ -18,10 +18,11 @@
 
 ## Phase 3: Advanced/Uncommon Methods
 
-- [ ] RYB mapping variants.
+- [x] RYB mapping variants (baseline).
 - [ ] Golden-angle and sequence-driven hue generation refinement.
 - [ ] Cubehelix and scientific visualization ramps expansion.
-- [ ] CVD-aware and robust categorical sets.
+- [x] CVD-aware categorical set baseline.
+- [x] Optimization-based spacing baseline (simulated annealing).
 
 ## Phase 4: Productization
 

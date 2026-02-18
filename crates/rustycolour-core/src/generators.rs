@@ -232,6 +232,166 @@ impl PaletteMethod for Square {
     }
 }
 
+pub struct RybComplementary;
+
+impl PaletteMethod for RybComplementary {
+    fn id(&self) -> &'static str {
+        "ryb-complementary"
+    }
+
+    fn name(&self) -> &'static str {
+        "RYB Complementary"
+    }
+
+    fn category(&self) -> MethodCategory {
+        MethodCategory::Advanced
+    }
+
+    fn generate(&self, request: &GenerationRequest) -> Palette {
+        let (h, s, l) = request.seed.to_hsl();
+        let size = request.size.max(2);
+        let mix = request.params.ryb_mix.clamp(0.0, 1.0);
+        let ryb_hue = rgb_hue_to_ryb_hue(h);
+        let ryb_comp = ryb_hue_to_rgb_hue(ryb_hue + 180.0);
+        let rgb_comp = h + 180.0;
+        let blended_comp = lerp_angle(rgb_comp, ryb_comp, mix);
+        let wheel = [h, blended_comp];
+
+        let colors = (0..size)
+            .map(|i| {
+                let tone = (l + ((i as f32 * 0.06) - 0.05)).clamp(0.16, 0.86);
+                Color::from_hsl(wheel[i % wheel.len()], s, tone)
+            })
+            .collect();
+
+        Palette { colors }
+    }
+}
+
+pub struct CvdSafeCategorical;
+
+impl PaletteMethod for CvdSafeCategorical {
+    fn id(&self) -> &'static str {
+        "cvd-safe-categorical"
+    }
+
+    fn name(&self) -> &'static str {
+        "CVD-Safe Categorical"
+    }
+
+    fn category(&self) -> MethodCategory {
+        MethodCategory::Accessibility
+    }
+
+    fn generate(&self, request: &GenerationRequest) -> Palette {
+        let size = request.size.max(3);
+        let (seed_h, seed_s, seed_l) = request.seed.to_hsl();
+        let sat = (seed_s * 0.75 + 0.25).clamp(0.35, 0.9);
+        let light = (seed_l * 0.8 + 0.2).clamp(0.28, 0.72);
+        let severity = request.params.cvd_severity.clamp(0.0, 1.0);
+
+        let candidates = (0..72)
+            .map(|i| {
+                let hue = seed_h + i as f32 * 5.0;
+                Color::from_hsl(hue, sat, light)
+            })
+            .collect::<Vec<_>>();
+
+        let mut selected = vec![request.seed];
+        while selected.len() < size {
+            let mut best = None;
+            let mut best_score = -1.0f32;
+            for candidate in &candidates {
+                if selected
+                    .iter()
+                    .any(|existing| existing.to_hex_rgb() == candidate.to_hex_rgb())
+                {
+                    continue;
+                }
+                let candidate_cvd = simulate_deuteranopia(*candidate, severity);
+                let min_cvd_delta = selected
+                    .iter()
+                    .map(|existing| {
+                        let existing_cvd = simulate_deuteranopia(*existing, severity);
+                        delta_e76(candidate_cvd, existing_cvd)
+                    })
+                    .fold(f32::INFINITY, f32::min);
+                if min_cvd_delta > best_score {
+                    best_score = min_cvd_delta;
+                    best = Some(*candidate);
+                }
+            }
+            match best {
+                Some(color) => selected.push(color),
+                None => break,
+            }
+        }
+
+        Palette { colors: selected }
+    }
+}
+
+pub struct AnnealedDeltaESpacing;
+
+impl PaletteMethod for AnnealedDeltaESpacing {
+    fn id(&self) -> &'static str {
+        "annealed-deltae"
+    }
+
+    fn name(&self) -> &'static str {
+        "Annealed DeltaE Spacing"
+    }
+
+    fn category(&self) -> MethodCategory {
+        MethodCategory::Advanced
+    }
+
+    fn generate(&self, request: &GenerationRequest) -> Palette {
+        let size = request.size.max(3);
+        let (seed_h, seed_s, seed_l) = request.seed.to_hsl();
+        let sat = (seed_s * 0.82 + 0.18).clamp(0.35, 0.95);
+        let light = (seed_l * 0.78 + 0.22).clamp(0.22, 0.8);
+        let iterations = request.params.anneal_iterations.clamp(20, 1200);
+        let mut temperature = request.params.anneal_temperature.clamp(0.1, 3.0);
+
+        let mut hues = (0..size)
+            .map(|i| seed_h + (i as f32 * 360.0 / size as f32))
+            .collect::<Vec<_>>();
+        let mut best_hues = hues.clone();
+        let mut best_energy = palette_spacing_energy(&hues, sat, light);
+
+        for iter in 0..iterations {
+            let idx = iter % size;
+            let jitter = (hash_unit(idx as u32, iter as u32) * 2.0 - 1.0) * 28.0 * temperature;
+            let mut proposed = hues.clone();
+            proposed[idx] = (proposed[idx] + jitter).rem_euclid(360.0);
+            let new_energy = palette_spacing_energy(&proposed, sat, light);
+            let delta = new_energy - best_energy;
+
+            let accept = delta > 0.0
+                || hash_unit((idx + 17) as u32, (iter + 31) as u32) < (delta / temperature).exp();
+            if accept {
+                hues = proposed;
+            }
+
+            let current_energy = palette_spacing_energy(&hues, sat, light);
+            if current_energy > best_energy {
+                best_energy = current_energy;
+                best_hues = hues.clone();
+            }
+
+            temperature *= 0.985;
+            temperature = temperature.max(0.03);
+        }
+
+        let colors = best_hues
+            .iter()
+            .map(|hue| Color::from_hsl(*hue, sat, light))
+            .collect();
+        Palette { colors }
+    }
+}
+
 pub struct LuminanceRamp;
 
 impl PaletteMethod for LuminanceRamp {
@@ -505,4 +665,92 @@ fn color_with_target_luminance(h: f32, s: f32, target_luminance: f32) -> Color {
     }
 
     candidate
+}
+
+fn rgb_hue_to_ryb_hue(h: f32) -> f32 {
+    remap_hue_with_control_points(
+        h,
+        &[
+            (0.0, 0.0),
+            (60.0, 35.0),
+            (120.0, 60.0),
+            (180.0, 120.0),
+            (240.0, 180.0),
+            (300.0, 260.0),
+            (360.0, 360.0),
+        ],
+    )
+}
+
+fn ryb_hue_to_rgb_hue(h: f32) -> f32 {
+    remap_hue_with_control_points(
+        h,
+        &[
+            (0.0, 0.0),
+            (35.0, 60.0),
+            (60.0, 120.0),
+            (120.0, 180.0),
+            (180.0, 240.0),
+            (260.0, 300.0),
+            (360.0, 360.0),
+        ],
+    )
+}
+
+fn remap_hue_with_control_points(h: f32, points: &[(f32, f32)]) -> f32 {
+    let hue = h.rem_euclid(360.0);
+    for window in points.windows(2) {
+        let (x0, y0) = window[0];
+        let (x1, y1) = window[1];
+        if (x0..=x1).contains(&hue) {
+            let t = if (x1 - x0).abs() < f32::EPSILON {
+                0.0
+            } else {
+                (hue - x0) / (x1 - x0)
+            };
+            return y0 + t * (y1 - y0);
+        }
+    }
+    hue
+}
+
+fn lerp_angle(a: f32, b: f32, t: f32) -> f32 {
+    let mut diff = (b - a).rem_euclid(360.0);
+    if diff > 180.0 {
+        diff -= 360.0;
+    }
+    (a + diff * t).rem_euclid(360.0)
+}
+
+fn simulate_deuteranopia(color: Color, severity: f32) -> Color {
+    let s = severity.clamp(0.0, 1.0);
+    let sim_r = (0.367 * color.r + 0.861 * color.g - 0.228 * color.b).clamp(0.0, 1.0);
+    let sim_g = (0.28 * color.r + 0.673 * color.g + 0.047 * color.b).clamp(0.0, 1.0);
+    let sim_b = (-0.012 * color.r + 0.043 * color.g + 0.969 * color.b).clamp(0.0, 1.0);
+
+    Color::from_rgba(
+        color.r + (sim_r - color.r) * s,
+        color.g + (sim_g - color.g) * s,
+        color.b + (sim_b - color.b) * s,
+        color.a,
+    )
+}
+
+fn palette_spacing_energy(hues: &[f32], sat: f32, light: f32) -> f32 {
+    let colors = hues
+        .iter()
+        .map(|hue| Color::from_hsl(*hue, sat, light))
+        .collect::<Vec<_>>();
+    let mut min_delta = f32::INFINITY;
+    for i in 0..colors.len() {
+        for j in (i + 1)..colors.len() {
+            min_delta = min_delta.min(delta_e76(colors[i], colors[j]));
+        }
+    }
+    min_delta
+}
+
+fn hash_unit(a: u32, b: u32) -> f32 {
+    let x = (a as f32 * 12.9898 + b as f32 * 78.233).sin() * 43_758.547;
+    x.fract().abs()
 }

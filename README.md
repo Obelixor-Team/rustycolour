@@ -25,10 +25,13 @@ A colour theory toolkit for developers, artists, and design systems.
   - Triadic
   - Tetradic
   - Square
+  - RYB complementary variant
   - Perceptual luminance ramp
   - OKLCH ramp
   - Lab DeltaE-spaced palette
+  - Annealed DeltaE spacing
   - Contrast-first accessibility ramp
+  - CVD-safe categorical set
   - Golden-angle sequence
   - Cubehelix
 - Desktop GUI with method selection, dynamic parameter controls, swatch rendering, and one-click copy for HEX/RGB/HSL.

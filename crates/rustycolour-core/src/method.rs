@@ -17,6 +17,7 @@ pub struct GenerationRequest {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct MethodParams {
     pub analogous_spread_deg: f32,
     pub split_complement_deg: f32,
@@ -27,6 +28,10 @@ pub struct MethodParams {
     pub luminance_max: f32,
     pub oklch_chroma_scale: f32,
     pub deltae_target: f32,
+    pub ryb_mix: f32,
+    pub cvd_severity: f32,
+    pub anneal_iterations: usize,
+    pub anneal_temperature: f32,
 }
 
 impl Default for MethodParams {
@@ -41,6 +46,10 @@ impl Default for MethodParams {
             luminance_max: 0.92,
             oklch_chroma_scale: 1.0,
             deltae_target: 22.0,
+            ryb_mix: 1.0,
+            cvd_severity: 1.0,
+            anneal_iterations: 120,
+            anneal_temperature: 1.0,
         }
     }
 }

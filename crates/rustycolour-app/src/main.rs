@@ -169,6 +169,41 @@ impl RustyColourApp {
                     ))
                     .changed();
             }
+            "ryb-complementary" => {
+                ui.label("RYB wheel mix");
+                changed |= ui
+                    .add(egui::Slider::new(&mut self.params.ryb_mix, 0.0..=1.0))
+                    .changed();
+            }
+            "cvd-safe-categorical" => {
+                ui.label("CVD severity");
+                changed |= ui
+                    .add(egui::Slider::new(&mut self.params.cvd_severity, 0.0..=1.0))
+                    .changed();
+            }
+            "annealed-deltae" => {
+                ui.label("Target DeltaE (Lab)");
+                changed |= ui
+                    .add(egui::Slider::new(
+                        &mut self.params.deltae_target,
+                        5.0..=60.0,
+                    ))
+                    .changed();
+                ui.label("Anneal iterations");
+                changed |= ui
+                    .add(egui::Slider::new(
+                        &mut self.params.anneal_iterations,
+                        20..=1200,
+                    ))
+                    .changed();
+                ui.label("Anneal temperature");
+                changed |= ui
+                    .add(egui::Slider::new(
+                        &mut self.params.anneal_temperature,
+                        0.1..=3.0,
+                    ))
+                    .changed();
+            }
             "golden-angle" => {
                 ui.label("Step (degrees)");
                 changed |= ui
