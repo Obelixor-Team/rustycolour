@@ -854,3 +854,68 @@ impl eframe::App for RustyColourApp {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{AppSession, MethodPreset, PresetStore};
+    use rustycolour_core::{CvdMode, DeltaEMetric, MethodParams};
+
+    #[test]
+    fn app_session_json_round_trip_preserves_key_fields() {
+        let session = AppSession {
+            seed_hex: "#112233".to_owned(),
+            palette_size: 7,
+            method_id: "annealed-deltae".to_owned(),
+            params: MethodParams {
+                deltae_metric: DeltaEMetric::E00,
+                cvd_mode: CvdMode::Tritanopia,
+                cvd_severity: 0.7,
+                ..MethodParams::default()
+            },
+            export_format_index: 3,
+            export_css_prefix: "brand".to_owned(),
+            swatches_hex: vec!["#112233".to_owned(), "#445566".to_owned()],
+        };
+
+        let json = serde_json::to_string(&session).expect("session should serialize");
+        let decoded: AppSession = serde_json::from_str(&json).expect("session should deserialize");
+
+        assert_eq!(decoded.seed_hex, session.seed_hex);
+        assert_eq!(decoded.palette_size, session.palette_size);
+        assert_eq!(decoded.method_id, session.method_id);
+        assert_eq!(decoded.params.deltae_metric, DeltaEMetric::E00);
+        assert_eq!(decoded.params.cvd_mode, CvdMode::Tritanopia);
+        assert_eq!(decoded.swatches_hex, session.swatches_hex);
+    }
+
+    #[test]
+    fn preset_store_json_round_trip_preserves_presets() {
+        let store = PresetStore {
+            presets: vec![
+                MethodPreset {
+                    name: "Soft triadic".to_owned(),
+                    method_id: "triadic".to_owned(),
+                    params: MethodParams::default(),
+                },
+                MethodPreset {
+                    name: "Strict CVD".to_owned(),
+                    method_id: "cvd-safe-categorical".to_owned(),
+                    params: MethodParams {
+                        cvd_mode: CvdMode::Deuteranopia,
+                        cvd_severity: 1.0,
+                        ..MethodParams::default()
+                    },
+                },
+            ],
+        };
+
+        let json = serde_json::to_string(&store).expect("preset store should serialize");
+        let decoded: PresetStore =
+            serde_json::from_str(&json).expect("preset store should deserialize");
+
+        assert_eq!(decoded.presets.len(), 2);
+        assert_eq!(decoded.presets[0].name, "Soft triadic");
+        assert_eq!(decoded.presets[1].method_id, "cvd-safe-categorical");
+        assert_eq!(decoded.presets[1].params.cvd_mode, CvdMode::Deuteranopia);
+    }
+}

@@ -122,3 +122,28 @@ pub fn export_palette(palette: &Palette, format: ExportFormat, css_prefix: &str)
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{ExportFormat, export_palette};
+    use crate::{import::import_gpl, palette::Color, palette::Palette};
+
+    #[test]
+    fn gpl_round_trip_preserves_rgb_values() {
+        let palette = Palette {
+            colors: vec![
+                Color::from_rgb_u8(255, 0, 0),
+                Color::from_rgb_u8(12, 34, 56),
+                Color::from_rgb_u8(0, 255, 200),
+            ],
+        };
+
+        let gpl = export_palette(&palette, ExportFormat::Gpl, "RoundTrip");
+        let imported = import_gpl(&gpl).expect("exported GPL should be importable");
+
+        assert_eq!(imported.colors.len(), palette.colors.len());
+        for (left, right) in imported.colors.iter().zip(palette.colors.iter()) {
+            assert_eq!(left.to_rgb_u8(), right.to_rgb_u8());
+        }
+    }
+}
