@@ -1,0 +1,32 @@
+[workspace]
+members = [
+  "crates/rustycolour-core",
+  "crates/rustycolour-app",
+  "crates/rustycolour-cli",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+repository = "https://github.com/your-org/rustycolour"
+homepage = "https://github.com/your-org/rustycolour"
+documentation = "https://github.com/your-org/rustycolour"
+readme = "README.md"
+authors = ["rustycolour contributors"]
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+pedantic = "warn"
+nursery = "warn"
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
