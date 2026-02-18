@@ -29,6 +29,7 @@ struct RustyColourApp {
     status: String,
     export_format_index: usize,
     export_css_prefix: String,
+    export_path: String,
     contrast_fg_index: usize,
     contrast_bg_index: usize,
     session_path: String,
@@ -74,6 +75,7 @@ impl Default for RustyColourApp {
             status: "Ready".to_owned(),
             export_format_index: 0,
             export_css_prefix: "rc".to_owned(),
+            export_path: "rustycolour-export.txt".to_owned(),
             contrast_fg_index: 0,
             contrast_bg_index: 1,
             session_path: "rustycolour-session.json".to_owned(),
@@ -350,6 +352,11 @@ impl RustyColourApp {
             });
         }
 
+        ui.horizontal(|ui| {
+            ui.label("File path");
+            ui.text_edit_singleline(&mut self.export_path);
+        });
+
         let output = export_palette(
             &self.palette,
             self.selected_export_format(),
@@ -357,6 +364,16 @@ impl RustyColourApp {
         );
         if ui.button("Copy Export").clicked() {
             ui.ctx().copy_text(output.clone());
+        }
+        if ui.button("Export to File").clicked() {
+            match fs::write(&self.export_path, &output) {
+                Ok(()) => {
+                    self.status = format!("Exported palette to {}", self.export_path);
+                }
+                Err(error) => {
+                    self.status = format!("Failed to export file: {error}");
+                }
+            }
         }
         let mut preview = output;
 
