@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 use rustycolour_core::{Color, GenerationRequest, MethodParams, MethodRegistry};
 
 fn main() {

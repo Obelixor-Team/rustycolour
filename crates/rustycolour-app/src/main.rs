@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 use eframe::{NativeOptions, egui};
 use rfd::FileDialog;
 use rustycolour_core::{

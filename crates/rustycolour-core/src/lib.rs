@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 pub mod export;
 pub mod generators;
 pub mod import;
