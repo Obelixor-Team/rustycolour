@@ -5,7 +5,7 @@ use rustycolour_core::{
     simulate_cvd, wcag_contrast_ratio,
 };
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::{fs, path::PathBuf};
 
 fn main() -> eframe::Result<()> {
     let options = NativeOptions {
@@ -89,6 +89,35 @@ impl Default for RustyColourApp {
 }
 
 impl RustyColourApp {
+    fn extension_for_format(format: ExportFormat) -> &'static str {
+        match format {
+            ExportFormat::Ase => "ase",
+            ExportFormat::Gpl => "gpl",
+            ExportFormat::Json => "json",
+            ExportFormat::CssVariables => "css",
+            _ => "txt",
+        }
+    }
+
+    fn sync_export_extension(&mut self) {
+        let ext = Self::extension_for_format(self.selected_export_format());
+        let raw = self.export_path.trim();
+
+        if raw.is_empty() {
+            self.export_path = format!("rustycolour-export.{ext}");
+            return;
+        }
+
+        let mut path = PathBuf::from(raw);
+        if path.extension().is_some() {
+            path.set_extension(ext);
+            self.export_path = path.to_string_lossy().to_string();
+            return;
+        }
+
+        self.export_path = format!("{raw}.{ext}");
+    }
+
     fn selected_method(&self) -> Option<&dyn rustycolour_core::PaletteMethod> {
         self.registry
             .methods()
@@ -336,14 +365,20 @@ impl RustyColourApp {
     fn show_export_panel(&mut self, ui: &mut egui::Ui) {
         ui.heading("Export");
         ui.separator();
+        let mut format_changed = false;
 
         egui::ComboBox::from_label("Format")
             .selected_text(self.selected_export_format().label())
             .show_ui(ui, |ui| {
                 for (index, format) in ExportFormat::ALL.iter().enumerate() {
-                    ui.selectable_value(&mut self.export_format_index, index, format.label());
+                    format_changed |= ui
+                        .selectable_value(&mut self.export_format_index, index, format.label())
+                        .changed();
                 }
             });
+        if format_changed {
+            self.sync_export_extension();
+        }
 
         if self.selected_export_format() == ExportFormat::CssVariables {
             ui.horizontal(|ui| {
