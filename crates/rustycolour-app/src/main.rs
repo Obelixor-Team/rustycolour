@@ -872,6 +872,23 @@ impl eframe::App for RustyColourApp {
             ui.separator();
 
             ui.horizontal_wrapped(|ui| {
+                ui.label("Seed");
+                let mut seed_color = Color::from_hex_rgb(&self.seed_hex)
+                    .map(|color| {
+                        let (r, g, b) = color.to_rgb_u8();
+                        egui::Color32::from_rgb(r, g, b)
+                    })
+                    .unwrap_or_else(|| egui::Color32::from_rgb(79, 70, 229));
+                if ui.color_edit_button_srgba(&mut seed_color).changed() {
+                    self.seed_hex = format!(
+                        "#{:02X}{:02X}{:02X}",
+                        seed_color.r(),
+                        seed_color.g(),
+                        seed_color.b()
+                    );
+                    controls_changed = true;
+                }
+
                 ui.label("Seed HEX:");
                 controls_changed |= ui.text_edit_singleline(&mut self.seed_hex).changed();
 
