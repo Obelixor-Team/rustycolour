@@ -2,9 +2,9 @@
 
 A colour theory toolkit for developers, artists, and design systems.
 
-## Vision
+## Status
 
-`rustycolour` combines classical and advanced colour theory models in one maintainable Rust codebase with both GUI and CLI workflows.
+Active beta on `dev`. Core generation, import/export, accessibility scoring, presets, and session workflows are implemented and tested.
 
 ## Repository layout
 
@@ -15,33 +15,31 @@ A colour theory toolkit for developers, artists, and design systems.
 - `examples/`: reproducible examples and presets.
 - `examples/palettes/`: sample GPL/ASE files for import/export testing.
 
-## Current capabilities
+## Features
 
 - Built-in palette method registry.
-- Initial generation methods:
-  - Monochrome
-  - Complementary
-  - Analogous
-  - Split-complementary
-  - Triadic
-  - Tetradic
-  - Square
-  - RYB complementary variant
-  - Perceptual luminance ramp
-  - OKLCH ramp
-  - Lab DeltaE-spaced palette
-  - Annealed DeltaE spacing
-  - Contrast-first accessibility ramp
-  - CVD-safe categorical set
-  - Golden-angle sequence
-  - Cubehelix
-- Desktop GUI with method selection, dynamic parameter controls, swatch rendering, and one-click copy for HEX/RGB/HSL.
-- Export panel for HEX/RGB/HSL/OKLCH/GPL/ASE, CSS variables, and JSON, with copy and file export.
-- Import panel with GPL (`.gpl`) and ASE (`.ase`) palette loading.
-- Contrast scoring panel with WCAG ratios, APCA 0.0.98G-style Lc scoring, and CVD simulation modes.
-- Session save/load to JSON for seed, method, parameters, and generated swatches.
-- Method presets: save/load/delete named parameter profiles per generator, with JSON preset files.
-- CLI scaffold with generation example output.
+- Generation methods:
+  - Classical: monochrome, complementary, analogous, split-complementary, triadic, tetradic, square.
+  - Perceptual: luminance ramp, OKLCH ramp, Lab DeltaE-spaced.
+  - Advanced/uncommon: RYB complementary, annealed DeltaE spacing, golden-angle, cubehelix.
+  - Accessibility-oriented: contrast-first, CVD-safe categorical.
+- DeltaE support:
+  - `CIE76` and `CIEDE2000` selectable for DeltaE-based generators.
+- Accessibility support:
+  - WCAG contrast ratio.
+  - APCA 0.0.98G-style `Lc` scoring.
+  - CVD simulation modes: deuteranopia, protanopia, tritanopia (with severity control).
+- Import:
+  - GPL (`.gpl`) and ASE (`.ase`) palettes.
+- Export:
+  - HEX, RGB, HSL, OKLCH, GPL, ASE, CSS variables, JSON.
+  - Copy-to-clipboard and export-to-file workflows.
+  - Auto file-extension sync based on selected export format.
+- Workflow tools:
+  - Session save/load (`.json`) for full working state.
+  - Per-method preset save/load/delete with preset file persistence (`.json`).
+- Testing:
+  - Unit coverage for color metrics, uncommon generators, and import/export round-trips.
 
 ## Development
 
@@ -52,6 +50,14 @@ cargo test --workspace
 cargo run -p rustycolour-cli
 cargo run -p rustycolour-app
 ```
+
+## Quick start
+
+1. Launch app: `cargo run -p rustycolour-app`
+2. Try sample imports:
+  - `examples/palettes/vivid-sample.gpl`
+  - `examples/palettes/single-red.ase`
+3. Generate/adjust palettes, then export to file from the Export panel.
 
 ## License
 
