@@ -9,7 +9,7 @@ use std::{fs, path::PathBuf};
 
 fn main() -> eframe::Result<()> {
     let options = NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([1260.0, 760.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([1260.0, 860.0]),
         ..Default::default()
     };
     eframe::run_native(
