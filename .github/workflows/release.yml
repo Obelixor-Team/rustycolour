@@ -6,10 +6,8 @@ on:
       - 'v*.*.*'
 
 jobs:
-  validate-and-release:
+  validate:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -24,13 +22,47 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
-      - name: Build artifacts
-        run: |
-          cargo build --release --workspace
-          tar -czf rustycolour-${GITHUB_REF_NAME}-linux-x86_64.tar.gz -C target/release rustycolour-app rustycolour-cli
+  package:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: rustycolour-${{ github.ref_name }}-linux-x86_64.tar.gz
+            pack_cmd: tar -czf rustycolour-${{ github.ref_name }}-linux-x86_64.tar.gz -C target/release rustycolour-app rustycolour-cli
+          - os: windows-latest
+            artifact_name: rustycolour-${{ github.ref_name }}-windows-x86_64.zip
+            pack_cmd: powershell -Command "Compress-Archive -Path target/release/rustycolour-app.exe,target/release/rustycolour-cli.exe -DestinationPath rustycolour-${{ github.ref_name }}-windows-x86_64.zip -Force"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build release binaries
+        run: cargo build --release --workspace
+      - name: Package artifacts
+        run: ${{ matrix.pack_cmd }}
+      - name: Upload packaged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}
 
+  publish:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download packaged artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: rustycolour-${{ github.ref_name }}-linux-x86_64.tar.gz
+          files: |
+            release-artifacts/rustycolour-${{ github.ref_name }}-linux-x86_64.tar.gz/rustycolour-${{ github.ref_name }}-linux-x86_64.tar.gz
+            release-artifacts/rustycolour-${{ github.ref_name }}-windows-x86_64.zip/rustycolour-${{ github.ref_name }}-windows-x86_64.zip
           generate_release_notes: true
