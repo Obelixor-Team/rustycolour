@@ -13,6 +13,7 @@ A colour theory toolkit for developers, artists, and design systems.
 - `crates/rustycolour-cli`: command-line tooling for scripting and export automation.
 - `docs/`: architecture, theory references, roadmap, and design decisions.
 - `examples/`: reproducible examples and presets.
+- `examples/palettes/`: sample GPL/ASE files for import/export testing.
 
 ## Current capabilities
 
