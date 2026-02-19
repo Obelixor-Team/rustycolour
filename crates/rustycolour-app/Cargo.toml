@@ -15,6 +15,7 @@ workspace = true
 
 [dependencies]
 eframe = "0.31.1"
+rfd = "0.15.4"
 rustycolour-core = { path = "../rustycolour-core" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

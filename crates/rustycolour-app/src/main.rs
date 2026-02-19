@@ -1,4 +1,5 @@
 use eframe::{NativeOptions, egui};
+use rfd::FileDialog;
 use rustycolour_core::{
     Color, CvdMode, DeltaEMetric, ExportFormat, GenerationRequest, MethodParams, MethodRegistry,
     Palette, apca_contrast_lc, export_palette, export_palette_bytes, import_ase, import_gpl,
@@ -420,21 +421,47 @@ impl RustyColourApp {
             }
         }
         if ui.button("Export to File").clicked() {
-            match export_palette_bytes(
-                &self.palette,
-                self.selected_export_format(),
-                &self.export_css_prefix,
-            ) {
-                Ok(bytes) => match fs::write(&self.export_path, bytes) {
-                    Ok(()) => {
-                        self.status = format!("Exported palette to {}", self.export_path);
+            let current = PathBuf::from(self.export_path.trim());
+            let default_name = current
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("rustycolour-export.txt")
+                .to_owned();
+            let default_dir = current
+                .parent()
+                .filter(|p| !p.as_os_str().is_empty())
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("."));
+
+            let save_path = FileDialog::new()
+                .set_directory(default_dir)
+                .set_file_name(&default_name)
+                .save_file();
+
+            match save_path {
+                Some(path) => {
+                    self.export_path = path.to_string_lossy().to_string();
+                    match export_palette_bytes(
+                        &self.palette,
+                        self.selected_export_format(),
+                        &self.export_css_prefix,
+                    ) {
+                        Ok(bytes) => match fs::write(&path, bytes) {
+                            Ok(()) => {
+                                self.status =
+                                    format!("Exported palette to {}", path.to_string_lossy());
+                            }
+                            Err(error) => {
+                                self.status = format!("Failed to export file: {error}");
+                            }
+                        },
+                        Err(error) => {
+                            self.status = format!("Failed to build export content: {error}");
+                        }
                     }
-                    Err(error) => {
-                        self.status = format!("Failed to export file: {error}");
-                    }
-                },
-                Err(error) => {
-                    self.status = format!("Failed to build export content: {error}");
+                }
+                None => {
+                    self.status = "Export canceled".to_owned();
                 }
             }
         }
