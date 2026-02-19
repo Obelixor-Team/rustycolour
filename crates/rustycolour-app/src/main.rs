@@ -38,6 +38,14 @@ struct RustyColourApp {
     preset_name_input: String,
     preset_selection_index: usize,
     presets: Vec<MethodPreset>,
+    theme_mode: ThemeMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ThemeMode {
+    System,
+    Dark,
+    Light,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,11 +92,20 @@ impl Default for RustyColourApp {
             preset_name_input: String::new(),
             preset_selection_index: 0,
             presets: Vec::new(),
+            theme_mode: ThemeMode::System,
         }
     }
 }
 
 impl RustyColourApp {
+    fn apply_theme(&self, ctx: &egui::Context) {
+        match self.theme_mode {
+            ThemeMode::System => {}
+            ThemeMode::Dark => ctx.set_visuals(egui::Visuals::dark()),
+            ThemeMode::Light => ctx.set_visuals(egui::Visuals::light()),
+        }
+    }
+
     fn extension_for_format(format: ExportFormat) -> &'static str {
         match format {
             ExportFormat::Ase => "ase",
@@ -820,6 +837,7 @@ impl RustyColourApp {
 
 impl eframe::App for RustyColourApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.apply_theme(ctx);
         let mut controls_changed = self.palette.colors.is_empty();
         let mut manual_generate = false;
 
@@ -896,6 +914,18 @@ impl eframe::App for RustyColourApp {
                 if ui.button("Generate").clicked() {
                     manual_generate = true;
                 }
+
+                egui::ComboBox::from_label("Theme")
+                    .selected_text(match self.theme_mode {
+                        ThemeMode::System => "System",
+                        ThemeMode::Dark => "Dark",
+                        ThemeMode::Light => "Light",
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut self.theme_mode, ThemeMode::System, "System");
+                        ui.selectable_value(&mut self.theme_mode, ThemeMode::Dark, "Dark");
+                        ui.selectable_value(&mut self.theme_mode, ThemeMode::Light, "Light");
+                    });
             });
 
             ui.label(&self.status);
