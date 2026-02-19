@@ -1,3 +1,5 @@
+//! Color quality and accessibility metrics used by generators and UI.
+
 use crate::{method::CvdMode, palette::Color};
 
 const APCA_NORM_BG: f32 = 0.56;
@@ -13,6 +15,7 @@ const APCA_LOW_CLIP: f32 = 0.1;
 const APCA_LOW_OFFSET_BOW: f32 = 0.027;
 const APCA_LOW_OFFSET_WOB: f32 = 0.027;
 
+/// Convert an sRGB channel value in `[0,1]` to linear light space.
 pub fn srgb_to_linear(channel: f32) -> f32 {
     if channel <= 0.04045 {
         channel / 12.92
@@ -21,6 +24,7 @@ pub fn srgb_to_linear(channel: f32) -> f32 {
     }
 }
 
+/// Compute WCAG relative luminance for an RGBA color (alpha ignored).
 pub fn relative_luminance(color: Color) -> f32 {
     let r = srgb_to_linear(color.r.clamp(0.0, 1.0));
     let g = srgb_to_linear(color.g.clamp(0.0, 1.0));
@@ -28,6 +32,9 @@ pub fn relative_luminance(color: Color) -> f32 {
     0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
+/// Compute WCAG 2 contrast ratio between two colors.
+///
+/// Returns ratio in `[1, 21]`, where larger means stronger contrast.
 pub fn wcag_contrast_ratio(foreground: Color, background: Color) -> f32 {
     let l1 = relative_luminance(foreground);
     let l2 = relative_luminance(background);
@@ -35,6 +42,9 @@ pub fn wcag_contrast_ratio(foreground: Color, background: Color) -> f32 {
     (lighter + 0.05) / (darker + 0.05)
 }
 
+/// Compute APCA `Lc` contrast score using 0.0.98G-style constants.
+///
+/// Positive values indicate dark text on light background; negative indicates reverse.
 pub fn apca_contrast_lc(foreground: Color, background: Color) -> f32 {
     let txt_y = apca_luminance(foreground);
     let bg_y = apca_luminance(background);
@@ -63,12 +73,14 @@ pub fn apca_contrast_lc(foreground: Color, background: Color) -> f32 {
     }
 }
 
+/// Compute CIE76 DeltaE distance between two colors in Lab space.
 pub fn delta_e76(a: Color, b: Color) -> f32 {
     let (l1, a1, b1) = a.to_lab();
     let (l2, a2, b2) = b.to_lab();
     ((l1 - l2).powi(2) + (a1 - a2).powi(2) + (b1 - b2).powi(2)).sqrt()
 }
 
+/// Compute CIEDE2000 DeltaE distance between two colors in Lab space.
 pub fn delta_e00(a: Color, b: Color) -> f32 {
     let (l1, a1, b1) = a.to_lab();
     let (l2, a2, b2) = b.to_lab();
@@ -129,6 +141,9 @@ pub fn delta_e00(a: Color, b: Color) -> f32 {
     (dl_term * dl_term + dc_term * dc_term + dh_term * dh_term + rt * dc_term * dh_term).sqrt()
 }
 
+/// Simulate color appearance under color vision deficiency.
+///
+/// `severity` in `[0,1]` blends from original color (`0`) to full simulation (`1`).
 pub fn simulate_cvd(color: Color, mode: CvdMode, severity: f32) -> Color {
     let s = severity.clamp(0.0, 1.0);
     let (mr, mg, mb) = match mode {

@@ -1,3 +1,5 @@
+//! Runtime registry of available built-in palette generation methods.
+
 use std::sync::Arc;
 
 use crate::{
@@ -15,6 +17,7 @@ pub struct MethodRegistry {
 }
 
 impl MethodRegistry {
+    /// Create registry populated with all built-in generation methods.
     pub fn with_builtins() -> Self {
         let methods: Vec<Arc<dyn PaletteMethod>> = vec![
             Arc::new(Monochrome),
@@ -37,10 +40,12 @@ impl MethodRegistry {
         Self { methods }
     }
 
+    /// Return all registered methods in display order.
     pub fn methods(&self) -> &[Arc<dyn PaletteMethod>] {
         &self.methods
     }
 
+    /// Generate palette from method id if present.
     pub fn generate_by_id(&self, id: &str, request: &GenerationRequest) -> Option<Palette> {
         self.methods
             .iter()

@@ -1,3 +1,5 @@
+//! Built-in palette generation method implementations.
+
 use std::f32::consts::PI;
 
 use crate::{

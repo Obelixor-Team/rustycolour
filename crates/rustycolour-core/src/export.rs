@@ -1,7 +1,10 @@
+//! Palette export utilities for text and binary formats.
+
 use serde_json::json;
 
 use crate::palette::Palette;
 
+/// Supported palette/text export output formats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportFormat {
     HexList,
@@ -15,6 +18,7 @@ pub enum ExportFormat {
 }
 
 impl ExportFormat {
+    /// All UI-visible export formats in display order.
     pub const ALL: [Self; 8] = [
         Self::HexList,
         Self::RgbList,
@@ -26,6 +30,7 @@ impl ExportFormat {
         Self::Json,
     ];
 
+    /// Human-readable label used in UI selectors.
     pub fn label(self) -> &'static str {
         match self {
             Self::HexList => "HEX list",
@@ -40,6 +45,9 @@ impl ExportFormat {
     }
 }
 
+/// Export palette as text for the selected output format.
+///
+/// For binary formats such as ASE, this returns a guidance message.
 pub fn export_palette(palette: &Palette, format: ExportFormat, css_prefix: &str) -> String {
     match format {
         ExportFormat::HexList => palette
@@ -129,6 +137,10 @@ pub fn export_palette(palette: &Palette, format: ExportFormat, css_prefix: &str)
     }
 }
 
+/// Export palette to raw bytes for file writing.
+///
+/// # Errors
+/// Returns an error when binary export generation fails (e.g. empty palette for ASE).
 pub fn export_palette_bytes(
     palette: &Palette,
     format: ExportFormat,

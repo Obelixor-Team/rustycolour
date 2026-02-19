@@ -1,5 +1,10 @@
+//! Core color and palette domain types plus conversion helpers.
+
 use palette::{IntoColor, Lab, Oklch, Srgb};
 
+/// Canonical RGBA color used across the core crate.
+///
+/// Channel range is expected to be `[0,1]`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color {
     pub r: f32,
@@ -9,10 +14,12 @@ pub struct Color {
 }
 
 impl Color {
+    /// Construct from floating-point RGBA channels in `[0,1]`.
     pub const fn from_rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
     }
 
+    /// Construct from 8-bit RGB channels.
     pub fn from_rgb_u8(r: u8, g: u8, b: u8) -> Self {
         Self {
             r: f32::from(r) / 255.0,
@@ -22,6 +29,7 @@ impl Color {
         }
     }
 
+    /// Convert to 8-bit RGB channels.
     pub fn to_rgb_u8(self) -> (u8, u8, u8) {
         (
             (self.r.clamp(0.0, 1.0) * 255.0).round() as u8,
@@ -30,11 +38,13 @@ impl Color {
         )
     }
 
+    /// Convert to `#RRGGBB` uppercase hex string.
     pub fn to_hex_rgb(self) -> String {
         let (r, g, b) = self.to_rgb_u8();
         format!("#{r:02X}{g:02X}{b:02X}")
     }
 
+    /// Parse `#RRGGBB` or `RRGGBB` hex string.
     pub fn from_hex_rgb(value: &str) -> Option<Self> {
         let hex = value.trim().trim_start_matches('#');
         if hex.len() != 6 {
@@ -47,6 +57,8 @@ impl Color {
         Some(Self::from_rgb_u8(r, g, b))
     }
 
+    /// Convert to HSL tuple `(h, s, l)` where:
+    /// `h` in degrees `[0,360)`, `s` and `l` in `[0,1]`.
     pub fn to_hsl(self) -> (f32, f32, f32) {
         let r = self.r;
         let g = self.g;
@@ -79,6 +91,7 @@ impl Color {
         (h, s.clamp(0.0, 1.0), l.clamp(0.0, 1.0))
     }
 
+    /// Construct from HSL channels (`h` in degrees, `s/l` in `[0,1]`).
     pub fn from_hsl(h: f32, s: f32, l: f32) -> Self {
         let hue = h.rem_euclid(360.0);
         let saturation = s.clamp(0.0, 1.0);
@@ -110,6 +123,7 @@ impl Color {
         }
     }
 
+    /// Convert to OKLCH tuple `(l, c, h_deg)`.
     pub fn to_oklch(self) -> (f32, f32, f32) {
         let srgb = Srgb::new(self.r, self.g, self.b);
         let oklch: Oklch = srgb.into_linear().into_color();
@@ -117,6 +131,7 @@ impl Color {
         (oklch.l, oklch.chroma, h)
     }
 
+    /// Construct from OKLCH components.
     pub fn from_oklch(l: f32, c: f32, h_deg: f32) -> Self {
         let oklch = Oklch::new(l.clamp(0.0, 1.0), c.max(0.0), h_deg);
         let srgb: Srgb = Srgb::from_linear(oklch.into_color());
@@ -128,6 +143,7 @@ impl Color {
         }
     }
 
+    /// Convert to Lab tuple `(l, a, b)`.
     pub fn to_lab(self) -> (f32, f32, f32) {
         let srgb = Srgb::new(self.r, self.g, self.b);
         let lab: Lab = srgb.into_linear().into_color();
@@ -135,12 +151,14 @@ impl Color {
     }
 }
 
+/// Ordered set of generated/imported colors.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Palette {
     pub colors: Vec<Color>,
 }
 
 impl Palette {
+    /// Construct an empty palette.
     pub fn empty() -> Self {
         Self { colors: Vec::new() }
     }

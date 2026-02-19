@@ -1,36 +1,57 @@
+//! Palette method contracts and shared generation parameters.
+
 use crate::palette::{Color, Palette};
 use serde::{Deserialize, Serialize};
 
+/// High-level grouping for palette generation strategies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MethodCategory {
+    /// Traditional harmony rules based on hue wheel relationships.
     Classical,
+    /// Perceptual color-space-aware approaches (e.g. OKLCH/Lab).
     Perceptual,
+    /// Experimental or niche methods outside common harmony sets.
     Advanced,
+    /// Accessibility-oriented generation focused on robust distinction/contrast.
     Accessibility,
 }
 
+/// Request payload passed to palette generators.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GenerationRequest {
+    /// Seed color for generation.
     pub seed: Color,
+    /// Desired output size. Generators may clamp to method-specific minimums.
     pub size: usize,
+    /// Tunable parameters shared across methods.
     pub params: MethodParams,
 }
 
+/// DeltaE metric options for spacing/scoring methods.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum DeltaEMetric {
+    /// CIE76 Euclidean Lab distance.
     #[default]
     E76,
+    /// CIEDE2000 perceptual distance.
     E00,
 }
 
+/// Color vision deficiency simulation modes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CvdMode {
+    /// Deuteranopia simulation.
     #[default]
     Deuteranopia,
+    /// Protanopia simulation.
     Protanopia,
+    /// Tritanopia simulation.
     Tritanopia,
 }
 
+/// Shared method parameters used by generator implementations.
+///
+/// Parameters may be ignored by methods that do not use them.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct MethodParams {
@@ -73,9 +94,14 @@ impl Default for MethodParams {
     }
 }
 
+/// Interface implemented by all palette generation methods.
 pub trait PaletteMethod: Send + Sync {
+    /// Stable programmatic identifier (used by UI/session serialization).
     fn id(&self) -> &'static str;
+    /// Human-readable method name.
     fn name(&self) -> &'static str;
+    /// Category displayed in UI and used for grouping.
     fn category(&self) -> MethodCategory;
+    /// Generate a palette for the given request.
     fn generate(&self, request: &GenerationRequest) -> Palette;
 }

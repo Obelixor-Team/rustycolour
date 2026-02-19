@@ -1,5 +1,12 @@
+//! Palette import utilities for text and binary palette formats.
+
 use crate::palette::{Color, Palette};
 
+/// Parse a GIMP palette (`.gpl`) text file into a [`Palette`].
+///
+/// # Errors
+/// Returns an error when the header is invalid, channel values are malformed,
+/// or no colors are found.
 pub fn import_gpl(content: &str) -> Result<Palette, String> {
     let mut lines = content.lines();
     let Some(first) = lines.next() else {
@@ -56,6 +63,13 @@ pub fn import_gpl(content: &str) -> Result<Palette, String> {
     Ok(Palette { colors })
 }
 
+/// Parse an Adobe Swatch Exchange (`.ase`) binary file into a [`Palette`].
+///
+/// Supported color models: `RGB`, `Gray`, `CMYK`.
+///
+/// # Errors
+/// Returns an error for invalid headers, malformed blocks, or files with no
+/// importable colors.
 pub fn import_ase(bytes: &[u8]) -> Result<Palette, String> {
     let mut reader = ByteReader::new(bytes);
 
