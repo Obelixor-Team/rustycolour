@@ -2,6 +2,10 @@
 
 A colour theory toolkit for developers, artists, and design systems.
 
+## GUI
+
+![rustycolour GUI](./images/gui.png)
+
 ## Status
 
 Active beta on `dev`. Core generation, import/export, accessibility scoring, presets, and session workflows are implemented and tested.
@@ -50,6 +54,25 @@ cargo test --workspace
 cargo run -p rustycolour-cli
 cargo run -p rustycolour-app
 ```
+
+## Compile
+
+Debug build (faster compile, slower runtime):
+
+```bash
+cargo build --workspace
+```
+
+Release build (optimized binaries):
+
+```bash
+cargo build --release --workspace
+```
+
+Release binaries will be in:
+
+- `target/release/rustycolour-app`
+- `target/release/rustycolour-cli`
 
 ## Quick start
 
